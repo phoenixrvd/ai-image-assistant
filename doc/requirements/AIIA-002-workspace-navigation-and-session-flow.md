@@ -73,6 +73,12 @@ This requirement defines the functional UI zones and the session-oriented flow a
 - The new-session action is described inside the navigation zone.
 - The new-session action remains at the bottom on every screen size.
 
+### Open the new session directly and close navigation after creation
+**Type:** Functional  
+**Description:** Starting a new session from navigation opens that session and closes navigation.  
+**Acceptance Criteria:**
+- Activating the new-session action creates a new session, opens it, and closes navigation.
+
 ### Allow the navigation zone to collapse
 **Type:** Non-functional  
 **Description:** The system must allow the navigation zone to collapse when the user needs more workspace. On mobile-sized screens, users must be able to open and hide the navigation zone with horizontal swipe gestures.  
@@ -119,6 +125,16 @@ This requirement defines the functional UI zones and the session-oriented flow a
 **Acceptance Criteria:**
 - Configuration access remains visually compact and uses an options-oriented icon.
 - The prompt input remains focused on prompt entry and generation.
+
+### Provide prompt cleanup next to configuration access
+**Type:** Functional  
+**Description:** The system must provide a compact prompt-cleanup action directly next to the prompt-area configuration icon so users can clear the current prompt quickly.  
+**Acceptance Criteria:**
+- A compact cleanup icon is placed directly next to the prompt-area configuration icon.
+- Activating the cleanup action shows a confirmation dialog before clearing the prompt input.
+- Confirming the dialog clears only the current prompt input content.
+- Canceling the dialog keeps the current prompt input content unchanged.
+- The cleanup action does not delete session history, messages, or generated images.
 
 ### Reduce visible clutter in the main workspace
 **Type:** Non-functional  

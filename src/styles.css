@@ -213,6 +213,8 @@ body::before {
   z-index: 1030;
   padding: 0;
   background: rgb(0 0 0 / 45%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 0;
   opacity: 1;
   touch-action: pan-y;
@@ -318,6 +320,49 @@ body::before {
 .topbar .btn:hover,
 .topbar .btn:focus-visible {
   background: rgb(var(--bs-body-bg-rgb) / 72%);
+}
+
+.nav-toggle {
+  background: rgb(var(--bs-body-bg-rgb) / 58%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.nav-toggle:hover,
+.nav-toggle:focus-visible {
+  background: rgb(var(--bs-body-bg-rgb) / 72%);
+}
+
+.install-prompt {
+  position: sticky;
+  top: 3.85rem;
+  z-index: 1010;
+  margin-bottom: 0.75rem;
+}
+
+.install-prompt-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: min(100%, 900px);
+  margin-inline: auto;
+  padding: 0.85rem;
+  background: color-mix(in srgb, var(--bs-tertiary-bg) 90%, var(--bs-primary) 10%);
+  border: var(--bs-border-width) solid rgba(var(--bs-primary-rgb), 0.34);
+  border-radius: var(--bs-border-radius-xl);
+  box-shadow: var(--bs-box-shadow-sm);
+}
+
+.install-prompt-card p {
+  margin: 0.2rem 0 0;
+  color: var(--bs-secondary-color);
+}
+
+.install-prompt-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.5rem;
 }
 
 .workspace-body {
@@ -668,6 +713,12 @@ body::before {
   border: 0;
 }
 
+.prompt-controls-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .prompt-controls .btn,
 .prompt-controls .btn:hover,
 .prompt-controls .btn:focus-visible,
@@ -738,12 +789,38 @@ body::before {
   border-radius: 999px;
 }
 
-.prompt-config:hover {
-  color: rgb(var(--bs-primary-rgb));
+.prompt-clear {
+  display: inline-grid;
+  width: 2.6rem;
+  min-height: 2.6rem;
+  padding: 0;
+  place-items: center;
+  color: var(--bs-secondary-color);
   background: transparent;
+  border: 0;
+  border-radius: 999px;
+}
+
+@media (hover: hover) {
+  .prompt-config:hover {
+    color: rgb(var(--bs-primary-rgb));
+    background: transparent;
+  }
+
+  .prompt-clear:hover {
+    color: rgb(var(--bs-primary-rgb));
+    background: transparent;
+  }
 }
 
 .prompt-config:focus-visible {
+  color: rgb(var(--bs-primary-rgb));
+  background: transparent;
+  outline: 0.15rem solid rgba(var(--bs-primary-rgb), 0.35);
+  outline-offset: 0.15rem;
+}
+
+.prompt-clear:focus-visible {
   color: rgb(var(--bs-primary-rgb));
   background: transparent;
   outline: 0.15rem solid rgba(var(--bs-primary-rgb), 0.35);
@@ -982,6 +1059,16 @@ body::before {
 }
 
 @media (max-width: 859.98px) {
+  .install-prompt-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .install-prompt-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
   .workspace-body {
     padding-bottom: 8.75rem;
   }

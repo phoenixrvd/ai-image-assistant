@@ -17,6 +17,7 @@ import { applyTheme, closePanels, createReferenceSnapshots, fileToDataUrl, readC
 import { ChatNavigation } from "./components/ChatNavigation";
 import { ConfigPanel } from "./components/ConfigPanel";
 import { ImageOverlay } from "./components/ImageOverlay";
+import { InstallPromptBanner } from "./components/InstallPromptBanner";
 import { OptionsView } from "./components/OptionsView";
 import { WorkspaceView } from "./components/WorkspaceView";
 
@@ -154,6 +155,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     },
     onSuccess: async (chat) => {
       navigate(`/chats/${chat.id}`);
+      setLeftOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
     }
   });
@@ -422,6 +424,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
             <Menu size={20} />
           </button>
         </header>
+        <InstallPromptBanner />
         {showOptions ? (
           <OptionsView models={modelsQuery.data ?? []} theme={themeQuery.data ?? "system"} />
         ) : (

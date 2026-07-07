@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { ClipboardEvent, KeyboardEvent } from "react";
-import { Download, Image as ImageIcon, Pin, RotateCcw, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import type { ClipboardEvent, KeyboardEvent, MouseEvent } from "react";
+import { Download, Eraser, Image as ImageIcon, Pin, RotateCcw, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { GenerationRequestEntity, ImageEntity } from "../../db/entities";
 import { formatMessageDate } from "../appHelpers";
 
@@ -59,6 +59,14 @@ export function WorkspaceView(props: {
   function handlePromptPaste(event: ClipboardEvent<HTMLDivElement>) {
     event.preventDefault();
     document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+  }
+
+  function clearPromptWithConfirmation(event: MouseEvent<HTMLButtonElement>) {
+    event.currentTarget.blur();
+    if (!props.prompt.trim()) return;
+    const confirmed = window.confirm("Prompt-Eingabe wirklich löschen?");
+    if (!confirmed) return;
+    props.setPrompt("");
   }
 
   const imagesByMessageId = useMemo(() => {
@@ -158,9 +166,14 @@ export function WorkspaceView(props: {
             onPaste={handlePromptPaste}
           />
           <div className="prompt-controls">
-            <button className="prompt-config" type="button" aria-label="Chat-Optionen öffnen" onClick={props.onOpenConfig}>
-              <SlidersHorizontal size={18} aria-hidden="true" />
-            </button>
+            <div className="prompt-controls-left">
+              <button className="prompt-config" type="button" aria-label="Chat-Optionen öffnen" onClick={props.onOpenConfig}>
+                <SlidersHorizontal size={18} aria-hidden="true" />
+              </button>
+              <button className="prompt-clear" type="button" aria-label="Prompt-Eingabe löschen" onClick={clearPromptWithConfirmation}>
+                <Eraser size={18} aria-hidden="true" />
+              </button>
+            </div>
             <button className="btn btn-primary prompt-submit" type="submit" aria-label="Generieren" disabled={!props.canGenerate || props.isGenerating}>
               <Send size={18} aria-hidden="true" />
             </button>
