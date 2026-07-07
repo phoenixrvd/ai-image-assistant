@@ -1,0 +1,35 @@
+{
+  "name": "ai-image-assistant",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "build": "node scripts/write-build-env.mjs && tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.2",
+    "@vitejs/plugin-react": "^6.0.3",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "bootstrap": "^5.3.8",
+    "dexie": "^4.4.4",
+    "lucide-react": "^1.23.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.1",
+    "vite": "^8.1.3",
+    "vite-plugin-pwa": "^1.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "prettier": "^3.9.4",
+    "sharp": "^0.35.3",
+    "typescript": "^6.0.3"
+  }
+}

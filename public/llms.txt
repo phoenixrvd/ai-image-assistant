@@ -1,0 +1,3 @@
+# AI Image Assistant
+
+AI Image Assistant is a browser-only PWA for local AI image generation workflows, model configuration, chats, and offline-capable usage.
