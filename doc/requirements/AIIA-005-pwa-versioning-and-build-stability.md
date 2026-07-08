@@ -26,6 +26,7 @@ The project is delivered as a Progressive Web App from the first implementation 
 - The application can be installed on supported devices.
 - The installed application launches directly into the workspace experience.
 - The installed application uses the product name, app icon, and visual identity of the application.
+- The installed application requests portrait orientation to avoid landscape mode in the PWA experience.
 - The installable app experience is part of the MVP delivery scope.
 
 ### Define offline and limited-connectivity behavior

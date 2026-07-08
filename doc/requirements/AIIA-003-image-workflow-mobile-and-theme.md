@@ -65,6 +65,7 @@ This requirement defines image presentation, per-image actions, prompt variation
 - The overlay navigation arrows are visually reduced, borderless, and appear over the image preview area.
 - Switching the overlay image also switches the blurred background to the active image.
 - The overlay supports sliding or swiping between images on touch-capable screens.
+- The overlay allows pinch-to-zoom only on the displayed image on touch-capable screens; the rest of the application must not become zoomable for this feature.
 
 ### Keep image actions compact and understandable
 **Type:** Non-functional  

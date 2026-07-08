@@ -30,6 +30,7 @@ export default defineConfig(({ mode }) => {
           start_url: "/",
           scope: "/",
           display: "standalone",
+          orientation: "portrait",
           background_color: "#111827",
           theme_color: "#111827",
           icons: [

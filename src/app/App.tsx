@@ -376,7 +376,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
   return (
     <div
-      className="app-shell"
+      className={overlayImage ? "app-shell image-overlay-open" : "app-shell"}
       onPointerDown={handleShellPointerDown}
       onPointerMove={handleShellPointerMove}
       onPointerUp={handleShellPointerUp}
