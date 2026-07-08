@@ -1,0 +1,65 @@
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+* {
+  scrollbar-color: rgba(var(--bs-primary-rgb), 0.45) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 0.45rem;
+  height: 0.45rem;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(var(--bs-primary-rgb), 0.35);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--bs-primary-rgb), 0.55);
+}
+
+body {
+  min-width: 320px;
+  position: relative;
+  isolation: isolate;
+  background: var(--bs-body-bg);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(circle at top left, rgba(var(--bs-primary-rgb), 0.22), transparent 30rem),
+    radial-gradient(circle at 78% 8%, rgb(14 165 233 / 12%), transparent 28rem),
+    linear-gradient(135deg, rgb(var(--bs-body-bg-rgb)) 0%, rgb(var(--bs-body-bg-rgb)) 42%, rgba(var(--bs-primary-rgb), 0.06) 100%),
+    var(--bs-body-bg);
+}
+
+.image-preview-button:focus-visible,
+.image-action:focus-visible,
+.prompt-repeat:focus-visible,
+.message-delete:focus-visible,
+.prompt-config:focus-visible,
+.prompt-clear:focus-visible {
+  outline: 0.15rem solid rgba(var(--bs-primary-rgb), 0.35);
+  outline-offset: 0.15rem;
+}

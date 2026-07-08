@@ -1,0 +1,58 @@
+.options-view {
+  display: grid;
+  gap: 1.5rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 1.5rem;
+}
+
+.options-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.model-form {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: var(--bs-border-width) solid var(--bs-border-color);
+}
+
+.model-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.model-status__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentcolor;
+  flex: 0 0 auto;
+}
+
+.model-status--usable {
+  color: var(--bs-success);
+}
+
+.model-status--incomplete {
+  color: var(--bs-secondary-color);
+}
+
+.general-options {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: var(--bs-border-width) solid var(--bs-border-color);
+}
+
+.settings-meta {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+}

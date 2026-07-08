@@ -1,0 +1,119 @@
+.config-panel {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 1050;
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+  width: min(90vw, 360px);
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--bs-tertiary-bg) 92%, var(--bs-primary) 8%);
+  border-left: var(--bs-border-width) solid var(--bs-border-color);
+  box-shadow: var(--bs-box-shadow-lg);
+  transform: translateX(104%);
+  transition: transform 180ms ease;
+}
+
+.config-panel.open {
+  transform: translateX(0);
+}
+
+.panel-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+#image-instructions {
+  min-height: 9.6rem;
+}
+
+.reference-strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.35rem;
+  border: 1px solid transparent;
+  border-radius: var(--bs-border-radius-lg);
+}
+
+.reference-strip.unsupported {
+  border-color: var(--bs-danger);
+  border-style: dashed;
+  background: rgba(var(--bs-danger-rgb), 0.06);
+}
+
+.reference-warning {
+  display: block;
+  margin-top: 0.25rem;
+  color: #b91c1c;
+}
+
+[data-bs-theme="dark"] .reference-warning {
+  color: #ff9aaa;
+}
+
+.reference-thumb {
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  opacity: 0.5;
+}
+
+.reference-thumb.active {
+  opacity: 1;
+}
+
+.reference-thumb img,
+.reference-thumb-fallback {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--bs-border-radius-lg);
+}
+
+.reference-thumb img {
+  object-fit: cover;
+}
+
+.reference-thumb-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--bs-secondary-color);
+  background: var(--bs-secondary-bg);
+}
+
+.upload-reference-button {
+  display: inline-grid;
+  width: 60px;
+  height: 60px;
+  place-items: center;
+  color: var(--bs-secondary-color);
+  cursor: pointer;
+  background: transparent;
+  border: 1px dashed var(--bs-border-color);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+.upload-reference-button:hover {
+  color: var(--bs-body-color);
+  border-color: rgba(var(--bs-primary-rgb), 0.65);
+}
+
+.upload-reference-button.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (min-width: 860px) {
+  .config-panel,
+  .config-panel:not(.open) {
+    position: sticky;
+    top: 0;
+    width: auto;
+    height: 100vh;
+    transform: none;
+    box-shadow: none;
+  }
+}

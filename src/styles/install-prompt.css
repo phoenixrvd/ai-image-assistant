@@ -1,0 +1,37 @@
+.install-prompt {
+  position: sticky;
+  top: 3.85rem;
+  z-index: 1010;
+  margin-bottom: 0.75rem;
+}
+
+.install-prompt-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: min(100%, 900px);
+  margin-inline: auto;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--bs-tertiary-bg) 90%, var(--bs-primary) 10%);
+  border: var(--bs-border-width) solid rgba(var(--bs-primary-rgb), 0.34);
+  border-radius: var(--bs-border-radius-xl);
+  box-shadow: var(--bs-box-shadow-sm);
+}
+
+.install-prompt-card p {
+  margin: 0.2rem 0 0;
+  color: var(--bs-secondary-color);
+}
+
+@media (max-width: 859.98px) {
+  .install-prompt-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .install-prompt-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+}

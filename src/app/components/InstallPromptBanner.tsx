@@ -57,7 +57,7 @@ export function InstallPromptBanner() {
           <strong>AI Image Assistant installieren</strong>
           <p>Nutze die App wie eine eigene Anwendung mit Icon auf deinem Gerät.</p>
         </div>
-        <div className="install-prompt-actions">
+        <div className="install-prompt-actions d-flex flex-shrink-0 gap-2">
           <button className="btn btn-primary" type="button" onClick={() => void installApp()}>
             Installieren
           </button>

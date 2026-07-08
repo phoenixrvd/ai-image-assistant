@@ -1,10 +1,9 @@
 import { generationRepository } from "../../../db/repositories/generationRepository";
-import { imageRepository } from "../../../db/repositories/imageRepository";
-import { messageRepository } from "../../../db/repositories/messageRepository";
+import type { ModelConfigEntity } from "../../../db/entities";
 import { isModelUsable, modelConfigRepository } from "../../../db/repositories/modelConfigRepository";
 import { isBrowserOffline, providerConnectivityError, sanitizeProviderError } from "../providers/sanitize";
 import { getProviderForModel } from "../providers/registry";
-import type { ImageGenerationInput } from "../providers/types";
+import type { ImageGenerationInput, NormalizedGenerationOutput } from "../providers/types";
 
 export async function generateImages(chatId: string, modelConfigId: string, input: ImageGenerationInput): Promise<void> {
   const model = await modelConfigRepository.get(modelConfigId);
@@ -13,51 +12,28 @@ export async function generateImages(chatId: string, modelConfigId: string, inpu
   }
 
   const instructions = input.instructions?.trim();
-  const message = await messageRepository.create(chatId, "user", input.prompt);
-  const request = await generationRepository.createRequest({
+  const parameters = { imageCount: input.imageCount, aspectRatio: input.aspectRatio, references: input.referenceSnapshots ?? summarizeReferences(input), ...(instructions ? { imageInstructions: instructions } : {}), ...(input.parameters ?? {}) };
+  const output = await requestImages(model, input);
+
+  await generationRepository.createSucceededImageGeneration({
     chatId,
-    messageId: message.id,
     modelConfigId: model.id,
     type: "image",
     prompt: input.prompt,
-    parameters: { imageCount: input.imageCount, aspectRatio: input.aspectRatio, references: input.referenceSnapshots ?? summarizeReferences(input), ...(instructions ? { imageInstructions: instructions } : {}), ...(input.parameters ?? {}) }
+    parameters,
+    images: output.images,
+    rawMetadata: output.rawMetadata
   });
-  await messageRepository.attachRequest(message.id, request.id);
+}
 
+async function requestImages(model: ModelConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput> {
   try {
-    await generationRepository.setRunning(request.id);
     if (isBrowserOffline()) throw new Error(providerConnectivityError);
 
     const provider = getProviderForModel(model);
-    const output = await provider.generateImage(model, input);
-    const result = await generationRepository.createResult({
-      requestId: request.id,
-      chatId,
-      messageId: message.id,
-      type: "image",
-      rawMetadata: output.rawMetadata
-    });
-    const images = await Promise.all(
-      output.images.map((image) =>
-        imageRepository.create({
-          chatId,
-          messageId: message.id,
-          requestId: request.id,
-          resultId: result.id,
-          blob: image.blob,
-          mimeType: image.mimeType,
-          prompt: input.prompt,
-          modelConfigId: model.id,
-          parameters: { imageCount: input.imageCount, aspectRatio: input.aspectRatio, references: input.referenceSnapshots ?? summarizeReferences(input), ...(instructions ? { imageInstructions: instructions } : {}) }
-        })
-      )
-    );
-    await generationRepository.setResultImages(result.id, images.map((image) => image.id));
-    await generationRepository.setSucceeded(request.id);
+    return await provider.generateImage(model, input);
   } catch (error) {
-    const safeError = sanitizeProviderError(error);
-    await generationRepository.setFailed(request.id, safeError);
-    throw new Error(safeError);
+    throw new Error(sanitizeProviderError(error));
   }
 }
 

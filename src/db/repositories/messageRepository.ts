@@ -17,10 +17,6 @@ export const messageRepository = {
     return message;
   },
 
-  async attachRequest(messageId: string, requestId: string): Promise<void> {
-    await db.messages.update(messageId, { requestId, updatedAt: nowIso() });
-  },
-
   async deleteWithImages(id: string): Promise<void> {
     await db.transaction("rw", db.messages, db.images, db.chats, db.generationRequests, db.generationResults, async () => {
       const message = await db.messages.get(id);

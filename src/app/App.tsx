@@ -167,7 +167,10 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       const references = referenceSnapshots?.map((reference) => reference.dataUrl);
       return generateImages(activeChatId!, activeModel!.id, { prompt: submittedPrompt, instructions: imageInstructions, imageCount, aspectRatio, references, referenceSnapshots });
     },
-    onSuccess: () => refreshChatData(queryClient, activeChatId),
+    onSuccess: (_, submittedPrompt) => {
+      triggerChatTitleGeneration(activeChatId!, submittedPrompt, (messagesQuery.data?.length ?? 0) === 0);
+      return refreshChatData(queryClient, activeChatId);
+    },
     onError: () => refreshChatData(queryClient, activeChatId)
   });
 
@@ -181,10 +184,10 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       const chat = await chatRepository.create();
       navigate(`/chats/${chat.id}`);
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
-      triggerChatTitleGeneration(chat.id, submittedPrompt, true);
       setIsCreatingInitialGeneration(true);
       try {
         await generateImages(chat.id, activeModel.id, { prompt: submittedPrompt, instructions: "", imageCount, aspectRatio });
+        triggerChatTitleGeneration(chat.id, submittedPrompt, true);
         await refreshChatData(queryClient, chat.id);
       } catch (error) {
         setInitialGenerationError(errorToMessage(error));
@@ -194,7 +197,6 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       }
       return;
     }
-    triggerChatTitleGeneration(activeChatId, submittedPrompt, (messagesQuery.data?.length ?? 0) === 0);
     generateMutation.mutate(submittedPrompt);
   }
 
@@ -383,6 +385,9 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       onPointerCancel={handleShellPointerCancel}
       onClickCapture={handleShellClickCapture}
     >
+      {!leftOpen && !leftDragging && (
+        <button className="nav-edge-swipe-target" type="button" aria-label="Navigation öffnen" onClick={openLeftPanel} />
+      )}
       <ChatNavigation
         chats={chatsQuery.data ?? []}
         activeChatId={activeChatId}
@@ -429,6 +434,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
           <OptionsView models={modelsQuery.data ?? []} theme={themeQuery.data ?? "system"} />
         ) : (
           <WorkspaceView
+            sessionId={activeChatId}
+            contentReady={!activeChatId || (messagesQuery.isFetched && imagesQuery.isFetched)}
             prompt={prompt}
             setPrompt={setPrompt}
             canGenerate={Boolean(isOnline && hasMinimumModelConfig && prompt.trim())}

@@ -1,0 +1,78 @@
+.btn {
+  border-radius: 999px;
+  font-weight: 650;
+}
+
+.icon-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.btn-primary {
+  --bs-btn-bg: #6d28d9;
+  --bs-btn-border-color: #6d28d9;
+  --bs-btn-hover-bg: #5b21b6;
+  --bs-btn-hover-border-color: #5b21b6;
+  --bs-btn-active-bg: #4c1d95;
+  --bs-btn-active-border-color: #4c1d95;
+  --bs-btn-disabled-bg: #7c3aed;
+  --bs-btn-disabled-border-color: #7c3aed;
+  box-shadow: 0 0.65rem 1.35rem rgba(var(--bs-primary-rgb), 0.22);
+}
+
+[data-bs-theme="dark"] .btn-primary {
+  --bs-btn-color: #12091f;
+  --bs-btn-bg: #c4b5fd;
+  --bs-btn-border-color: #c4b5fd;
+  --bs-btn-hover-color: #0f071a;
+  --bs-btn-hover-bg: #ddd6fe;
+  --bs-btn-hover-border-color: #ddd6fe;
+  --bs-btn-active-color: #0f071a;
+  --bs-btn-active-bg: #a78bfa;
+  --bs-btn-active-border-color: #a78bfa;
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--bs-body-color);
+  --bs-btn-border-color: var(--bs-border-color);
+  --bs-btn-hover-bg: rgba(var(--bs-primary-rgb), 0.12);
+  --bs-btn-hover-border-color: rgba(var(--bs-primary-rgb), 0.7);
+  --bs-btn-hover-color: var(--bs-body-color);
+  --bs-btn-active-bg: rgba(var(--bs-primary-rgb), 0.18);
+  --bs-btn-active-border-color: rgba(var(--bs-primary-rgb), 0.85);
+  --bs-btn-active-color: var(--bs-body-color);
+}
+
+.form-control,
+.form-select {
+  color: var(--bs-body-color);
+  background-color: color-mix(in srgb, var(--bs-tertiary-bg) 84%, var(--bs-body-bg));
+  border-color: var(--bs-border-color);
+}
+
+.form-floating > label {
+  color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.74;
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label,
+.form-floating > .form-select ~ label {
+  color: var(--bs-secondary-color);
+  opacity: 0.68;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: rgba(var(--bs-primary-rgb), 0.72);
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.18);
+}

@@ -88,6 +88,17 @@ This requirement defines image presentation, per-image actions, prompt variation
 - The documented session flow includes traceable prompt history.
 - A user can follow earlier prompt attempts within the same session.
 
+### Do not persist failed generation attempts
+**Type:** Functional  
+**Description:** Wenn eine Bildgenerierung mit einem Fehler endet, darf der fehlgeschlagene Versuch nicht als Chat-Verlauf angezeigt oder lokal als Generationsergebnis persistiert werden.  
+**Acceptance Criteria:**
+- Bei einem fehlgeschlagenen Provider-Request wird keine Chat-Nachricht angezeigt.
+- Bei einem fehlgeschlagenen Provider-Request wird keine Chat-Nachricht gespeichert.
+- Bei einem fehlgeschlagenen Provider-Request werden keine Generation-Requests, Generation-Results oder Images gespeichert.
+- Die bestehende oder neu geöffnete Sitzung bleibt erhalten.
+- Der Prompt bleibt im Eingabefeld erhalten, damit der Versuch korrigiert oder erneut gestartet werden kann.
+- Der Fehler wird dem Nutzer sichtbar angezeigt.
+
 ### Repeat an earlier prompt from current session history
 **Type:** Functional  
 **Description:** The system must allow a user to bring an earlier prompt from the current session history back into the prompt input without retyping it, so it can be started again unchanged.  

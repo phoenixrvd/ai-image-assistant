@@ -13,6 +13,7 @@ export function applyTheme(theme: ThemeMode) {
 }
 
 export function readChatNavOpenState(): boolean {
+  if (window.matchMedia("(max-width: 859.98px)").matches) return false;
   const saved = window.localStorage.getItem("chatNavOpen");
   if (saved === null) return true;
   return saved === "true";

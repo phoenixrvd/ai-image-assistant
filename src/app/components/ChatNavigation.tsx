@@ -34,7 +34,7 @@ export function ChatNavigation(props: {
           </button>
         ))}
       </div>
-      <div className="nav-actions">
+      <div className="nav-actions d-grid gap-2 mt-auto">
         <button className="btn btn-primary d-inline-flex align-items-center justify-content-center gap-2" onClick={props.onCreate}>
           <Plus size={18} /> Neue Sitzung
         </button>

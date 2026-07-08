@@ -31,6 +31,7 @@
 
 - Repo-local OpenCode agents live in `.opencode/agents/`.
 - Release/commit conventions are documented there; notably commit messages are English and release agents must not push unless explicitly requested.
+- Current app version in `package.json` must match the branch name, except when `main` is currently checked out.
 
 ## Text
 

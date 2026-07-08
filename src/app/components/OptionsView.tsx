@@ -30,7 +30,7 @@ export function OptionsView(props: { models: ModelConfigEntity[]; theme: ThemeMo
   return (
     <section className="options-view container-xxl py-3">
       <section className="options-section" aria-labelledby="models-heading">
-        <div className="options-section-header">
+        <div className="d-flex align-items-center justify-content-between gap-3">
           <h2 id="models-heading" className="h5 mb-0">
             Models
           </h2>
@@ -147,15 +147,15 @@ function ModelForm(props: { model: ModelConfigEntity; onDelete: (id: string) => 
           <label htmlFor={`model-quality-${model.id}`}>Quality</label>
         </div>
       )}
-      <label className="form-check inline-check">
+      <label className="form-check d-inline-flex align-items-center gap-2">
         <input className="form-check-input" type="checkbox" checked={model.enabled !== false} onChange={(event) => setModel({ ...model, enabled: event.target.checked })} /> <span className="form-check-label">Aktiviert</span>
       </label>
       {model.type === "image" && (
-        <label className="form-check inline-check">
+        <label className="form-check d-inline-flex align-items-center gap-2">
           <input className="form-check-input" type="checkbox" checked={modelSupportsReferenceImages(model)} onChange={(event) => setModel({ ...model, supportsReferenceImages: event.target.checked })} /> <span className="form-check-label">Unterstützt Referenzbilder</span>
         </label>
       )}
-      <div className="form-footer">
+      <div className="d-flex align-items-center justify-content-between gap-3">
         <span className={usable ? "model-status model-status--usable" : "model-status model-status--incomplete"}>
           <span className="model-status__dot" aria-hidden="true" />
           <span>{usable ? "verwendbar" : "unvollständig"}</span>

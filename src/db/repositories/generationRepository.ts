@@ -2,42 +2,61 @@ import { db } from "../database";
 import type { GenerationRequestEntity, GenerationResultEntity, JsonValue, ModelType } from "../entities";
 import { createId, nowIso } from "../id";
 
+type GeneratedImageInput = {
+  blob: Blob;
+  mimeType?: string;
+};
+
 export const generationRepository = {
-  async createRequest(input: {
+  async createSucceededImageGeneration(input: {
     chatId: string;
-    messageId?: string;
     modelConfigId: string;
     type: ModelType;
     prompt: string;
     parameters?: Record<string, JsonValue>;
-  }): Promise<GenerationRequestEntity> {
+    rawMetadata?: Record<string, JsonValue>;
+    images: GeneratedImageInput[];
+  }): Promise<void> {
     const now = nowIso();
-    const request = { id: createId("req"), status: "pending" as const, createdAt: now, updatedAt: now, ...input };
-    await db.generationRequests.add(request);
-    return request;
-  },
+    const messageId = createId("msg");
+    const requestId = createId("req");
+    const resultId = createId("res");
+    const imageIds = input.images.map(() => createId("img"));
 
-  async setRunning(id: string): Promise<void> {
-    await db.generationRequests.update(id, { status: "running", updatedAt: nowIso() });
-  },
-
-  async setFailed(id: string, error: string): Promise<void> {
-    await db.generationRequests.update(id, { status: "failed", error, updatedAt: nowIso() });
-  },
-
-  async setSucceeded(id: string): Promise<void> {
-    await db.generationRequests.update(id, { status: "succeeded", updatedAt: nowIso() });
-  },
-
-  async createResult(input: Omit<GenerationResultEntity, "id" | "createdAt" | "updatedAt">): Promise<GenerationResultEntity> {
-    const now = nowIso();
-    const result = { id: createId("res"), createdAt: now, updatedAt: now, ...input };
-    await db.generationResults.add(result);
-    return result;
-  },
-
-  async setResultImages(id: string, imageIds: string[]): Promise<void> {
-    await db.generationResults.update(id, { imageIds, updatedAt: nowIso() });
+    await db.transaction("rw", db.messages, db.chats, db.generationRequests, db.generationResults, db.images, async () => {
+      await db.messages.add({ id: messageId, chatId: input.chatId, role: "user", content: input.prompt, requestId, createdAt: now, updatedAt: now });
+      await db.generationRequests.add({
+        id: requestId,
+        chatId: input.chatId,
+        messageId,
+        modelConfigId: input.modelConfigId,
+        type: input.type,
+        prompt: input.prompt,
+        parameters: input.parameters,
+        status: "succeeded",
+        createdAt: now,
+        updatedAt: now
+      });
+      await db.generationResults.add({ id: resultId, requestId, chatId: input.chatId, messageId, type: input.type, imageIds, rawMetadata: input.rawMetadata, createdAt: now, updatedAt: now });
+      await db.images.bulkAdd(
+        input.images.map((image, index) => ({
+          id: imageIds[index],
+          chatId: input.chatId,
+          messageId,
+          requestId,
+          resultId,
+          blob: image.blob,
+          mimeType: image.mimeType,
+          sizeBytes: image.blob.size,
+          prompt: input.prompt,
+          modelConfigId: input.modelConfigId,
+          parameters: input.parameters,
+          createdAt: now,
+          updatedAt: now
+        }))
+      );
+      await db.chats.update(input.chatId, { lastMessageAt: now, updatedAt: now });
+    });
   },
 
   async listResultsByChat(chatId: string): Promise<GenerationResultEntity[]> {

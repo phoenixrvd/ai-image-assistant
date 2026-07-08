@@ -1,0 +1,86 @@
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.app-shell.image-overlay-open {
+  touch-action: pan-y pinch-zoom;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.topbar,
+.install-prompt,
+.workspace-body,
+.options-view {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  z-index: 1020;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  background: transparent;
+}
+
+.topbar .icon-button,
+.nav-toggle {
+  background-color: rgba(var(--bs-body-bg-rgb), 0.58);
+  backdrop-filter: blur(var(--glass-blur-soft));
+}
+
+.topbar .icon-button:hover,
+.topbar .icon-button:focus-visible,
+.nav-toggle:hover,
+.nav-toggle:focus-visible {
+  background-color: rgba(var(--bs-body-bg-rgb), 0.72);
+}
+
+.workspace-body {
+  display: grid;
+  position: relative;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.workspace-bottom-overlay,
+.prompt-bar {
+  width: min(100%, 900px);
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .topbar {
+    display: none;
+  }
+}
+
+@media (min-width: 860px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: 288px minmax(0, 1fr) 320px;
+  }
+
+  .app-shell:has(.chat-nav.closed) {
+    grid-template-columns: 72px minmax(0, 1fr) 320px;
+  }
+}
