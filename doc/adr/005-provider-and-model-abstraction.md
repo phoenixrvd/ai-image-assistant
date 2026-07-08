@@ -8,7 +8,7 @@ state: accepted
 accepted
 
 ## Context
-The application should support image generation through different providers. The MVP includes an OpenAI-compatible image-generation API and Grok as built-in provider integrations. Custom endpoints remain configurable when they are compatible with the provider configuration model. Providers differ in APIs and configuration details, but should be usable consistently by the application logic.
+The application should support image generation through different providers. The MVP includes an OpenAI-compatible image-generation API, Grok, and fal.ai as built-in provider integrations. Custom endpoints remain configurable when they are compatible with the provider configuration model. Providers differ in APIs and configuration details, but should be usable consistently by the application logic.
 
 ## Decision
 Providers are encapsulated behind a shared provider contract. Models are represented as configurable units with a type; in the first version, `chat` and `image` are the supported model types, with image generation as the primary use case.

@@ -9,4 +9,5 @@ interface ImportMetaEnv {
   readonly VITE_XAI_API_KEY?: string;
   readonly VITE_GROK_API_KEY?: string;
   readonly VITE_OPENAI_API_KEY?: string;
+  readonly VITE_FAL_AI_KEY?: string;
 }

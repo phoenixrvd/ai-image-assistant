@@ -37,6 +37,36 @@ This requirement defines the functional UI zones and the session-oriented flow a
 - The navigation zone includes an action to start a new session.
 - Repeating an earlier prompt from current session history is specified in [AIIA-003](./AIIA-003-image-workflow-mobile-and-theme.md#repeat-an-earlier-prompt-from-current-session-history).
 
+### Use lastChanged for chat ordering and default open
+**Type:** Functional  
+**Description:** The system must order and open chats by `lastChanged = lastMessageAt ?? updatedAt`.  
+**Acceptance Criteria:**
+- The chat list is sorted by `lastChanged` descending.
+- On app start, if chats exist, the chat with the highest `lastChanged` is opened.
+- On app start, if no chat exists, a new chat is created and opened.
+
+### Persist chat-scoped live settings
+**Type:** Functional  
+**Description:** The system must persist mutable live settings per chat to avoid state conflicts between chats.  
+**Acceptance Criteria:**
+- Per chat, the system persists and restores prompt draft, active image model, image count, aspect ratio, and style/rules instructions.
+- Per chat, the system persists and restores uploaded reference images as draft settings.
+- Live settings from one chat are never shown in another chat.
+
+### Keep prompt empty for newly created chats
+**Type:** Functional  
+**Description:** Newly created chats must start with an empty prompt input.  
+**Acceptance Criteria:**
+- Creating a new chat opens it with an empty prompt input.
+- Draft content from other chats is not carried over.
+
+### Reset transient generation errors on chat change
+**Type:** Functional  
+**Description:** Transient generation errors must be cleared whenever the active chat changes.  
+**Acceptance Criteria:**
+- Switching the active chat clears transient generation error state.
+- Errors from one chat are not shown in another chat.
+
 ### Keep the session list visually reduced
 **Type:** Constraint  
 **Description:** The system must keep the session list focused on session access and must not show detailed generation metadata. Compact time information is allowed when it represents the last activity or last message time.  
@@ -167,6 +197,16 @@ This requirement defines the functional UI zones and the session-oriented flow a
 - Generation options are documented in the configuration zone.
 - Chat-specific image instructions such as style and rules may be edited in the configuration zone.
 - API URLs, API keys, and model management are documented as global options, not as generation controls.
+
+### Handle selected reference images in configuration
+**Type:** Functional  
+**Description:** The system must apply a consistent confirmation-and-removal interaction when users click selected reference images in the configuration zone.  
+**Acceptance Criteria:**
+- Clicking a selected reference image in the configuration zone asks for confirmation before applying changes.
+- Confirming an uploaded reference image removes it from the selected references.
+- Confirming a pinned reference image unpins the image.
+- Unpinning a pinned reference image keeps the generated image in chat history.
+- The reference-image click interaction keeps the workspace scroll position unchanged.
 
 ### Offer image count selection as a dropdown
 **Type:** Functional  

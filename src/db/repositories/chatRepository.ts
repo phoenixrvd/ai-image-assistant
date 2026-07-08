@@ -2,10 +2,30 @@ import { db } from "../database";
 import type { ChatEntity } from "../entities";
 import { createId, nowIso } from "../id";
 
+export type ChatAspectRatio = "square" | "portrait" | "landscape";
+
+export type ChatUploadedReference = {
+  name: string;
+  dataUrl: string;
+};
+
+export type ChatSettings = {
+  promptDraft?: string;
+  activeImageModelId?: string;
+  imageCount?: number;
+  aspectRatio?: ChatAspectRatio;
+  imageInstructions?: string;
+  uploadedReferences?: ChatUploadedReference[];
+};
+
+const maxUploadedReferences = 3;
+
 export const chatRepository = {
   async list(): Promise<ChatEntity[]> {
-    const chats = await db.chats.orderBy("updatedAt").reverse().toArray();
-    return chats.filter((chat) => !chat.archived);
+    const chats = await db.chats.toArray();
+    return chats
+      .filter((chat) => !chat.archived)
+      .sort((left, right) => getLastChangedAt(right).localeCompare(getLastChangedAt(left)));
   },
 
   async get(id: string): Promise<ChatEntity | undefined> {
@@ -24,16 +44,34 @@ export const chatRepository = {
   },
 
   async updateImageInstructions(id: string, imageInstructions: string): Promise<void> {
+    await this.updateSettings(id, { imageInstructions });
+  },
+
+  async readSettings(id: string): Promise<ChatSettings> {
+    const chat = await db.chats.get(id);
+    if (!chat) return {};
+    return parseChatSettings(chat);
+  },
+
+  async updateSettings(id: string, patch: Partial<ChatSettings>): Promise<void> {
     await db.transaction("rw", db.chats, async () => {
       const chat = await db.chats.get(id);
       if (!chat) return;
-      const metadata = { ...(chat.metadata ?? {}) };
-      if (imageInstructions.trim()) {
-        metadata.imageInstructions = imageInstructions;
+      const existing = parseChatSettings(chat);
+      const next = sanitizeChatSettings({ ...existing, ...patch });
+      const metadata = { ...(chat.metadata ?? {}) } as Record<string, unknown>;
+
+      if (next.imageInstructions?.trim()) {
+        metadata.imageInstructions = next.imageInstructions;
       } else {
         delete metadata.imageInstructions;
       }
-      await db.chats.update(id, { metadata, updatedAt: nowIso() });
+      metadata.chatSettings = next as unknown as Record<string, unknown>;
+
+      await db.chats.update(id, {
+        metadata: metadata as ChatEntity["metadata"],
+        updatedAt: nowIso()
+      });
     });
   },
 
@@ -56,3 +94,61 @@ export const chatRepository = {
     });
   }
 };
+
+export function getLastChangedAt(chat: ChatEntity): string {
+  return chat.lastMessageAt ?? chat.updatedAt;
+}
+
+function parseChatSettings(chat: ChatEntity): ChatSettings {
+  const metadata = chat.metadata ?? {};
+  const rawSettings = metadata.chatSettings;
+  const settings = rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings) ? (rawSettings as Record<string, unknown>) : {};
+
+  return sanitizeChatSettings({
+    promptDraft: readString(settings.promptDraft),
+    activeImageModelId: readString(settings.activeImageModelId),
+    imageCount: readImageCount(settings.imageCount),
+    aspectRatio: readAspectRatio(settings.aspectRatio),
+    imageInstructions: readString(settings.imageInstructions) ?? readString(metadata.imageInstructions),
+    uploadedReferences: readUploadedReferences(settings.uploadedReferences)
+  });
+}
+
+function sanitizeChatSettings(settings: ChatSettings): ChatSettings {
+  return {
+    promptDraft: settings.promptDraft ?? "",
+    activeImageModelId: settings.activeImageModelId,
+    imageCount: settings.imageCount,
+    aspectRatio: settings.aspectRatio,
+    imageInstructions: settings.imageInstructions ?? "",
+    uploadedReferences: (settings.uploadedReferences ?? []).slice(0, maxUploadedReferences)
+  };
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function readImageCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 4 ? value : undefined;
+}
+
+function readAspectRatio(value: unknown): ChatAspectRatio | undefined {
+  return value === "square" || value === "portrait" || value === "landscape" ? value : undefined;
+}
+
+function readUploadedReferences(value: unknown): ChatUploadedReference[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+      const reference = entry as Record<string, unknown>;
+      const name = readString(reference.name);
+      const dataUrl = readString(reference.dataUrl);
+      if (!name || !dataUrl) return undefined;
+      return { name, dataUrl };
+    })
+    .filter((entry): entry is ChatUploadedReference => Boolean(entry))
+    .slice(0, maxUploadedReferences);
+}

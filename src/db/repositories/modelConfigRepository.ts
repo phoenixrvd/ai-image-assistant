@@ -94,6 +94,10 @@ function getDevApiKey(model: ModelConfigEntity): string | undefined {
     return firstEnvValue(import.meta.env.VITE_OPENAI_API_KEY);
   }
 
+  if (model.provider === "fal-ai") {
+    return firstEnvValue(import.meta.env.VITE_FAL_AI_KEY);
+  }
+
   return undefined;
 }
 

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { Image as ImageIcon, Trash2, Upload } from "lucide-react";
+import { Camera, Image as ImageIcon, Trash2, Upload } from "lucide-react";
 import type { ChatEntity, ImageEntity, ModelConfigEntity } from "../../db/entities";
 import { modelSupportsReferenceImages } from "../../db/repositories/modelConfigRepository";
 import type { UploadedReference } from "../appHelpers";
@@ -24,7 +24,7 @@ export function ConfigPanel(props: {
   onAspectRatio: (value: string) => void;
   pinnedImages: ImageEntity[];
   uploadedReferences: UploadedReference[];
-  onScrollToImage: (imageId: string) => void;
+  onRemovePinnedReference: (imageId: string) => void;
   onUploadReferences: (files: File[]) => void;
   onRemoveUploadedReference: (id: string) => void;
   onRenameChat: (title: string) => void;
@@ -80,7 +80,7 @@ export function ConfigPanel(props: {
         pinnedImages={props.pinnedImages}
         referencesEnabled={referencesEnabled}
         uploadedReferences={props.uploadedReferences}
-        onScrollToImage={props.onScrollToImage}
+        onRemovePinnedReference={props.onRemovePinnedReference}
         onUploadReferences={props.onUploadReferences}
         onRemoveUploadedReference={props.onRemoveUploadedReference}
       />
@@ -137,16 +137,36 @@ function PromptOptions(props: {
   pinnedImages: ImageEntity[];
   referencesEnabled: boolean;
   uploadedReferences: UploadedReference[];
-  onScrollToImage: (imageId: string) => void;
+  onRemovePinnedReference: (imageId: string) => void;
   onUploadReferences: (files: File[]) => void;
   onRemoveUploadedReference: (id: string) => void;
 }) {
   const canUpload = props.referencesEnabled && props.pinnedImages.length + props.uploadedReferences.length < 3;
+  const handleReferenceSelection = (files: FileList | null, input: HTMLInputElement) => {
+    const selectedFiles = Array.from(files ?? []);
+    if (selectedFiles.length === 0) return;
+    const remainingSlots = Math.max(0, 3 - (props.pinnedImages.length + props.uploadedReferences.length));
+    if (remainingSlots === 0) {
+      window.alert("Maximal 3 Referenzbilder erlaubt.");
+      input.value = "";
+      return;
+    }
+    props.onUploadReferences(selectedFiles.slice(0, remainingSlots));
+    if (selectedFiles.length > remainingSlots) window.alert("Nur die ersten 3 Referenzen wurden übernommen.");
+    input.value = "";
+  };
   return (
     <div className="prompt-options">
-      <div className={props.referencesEnabled ? "reference-strip" : "reference-strip unsupported"}>
+        <div className={props.referencesEnabled ? "reference-strip" : "reference-strip unsupported"}>
         {props.pinnedImages.map((image) => (
-          <ReferenceThumb key={image.id} active={props.referencesEnabled} blob={image.blob} onClick={() => props.onScrollToImage(image.id)} />
+          <ReferenceThumb
+            key={image.id}
+            active={props.referencesEnabled}
+            blob={image.blob}
+            onClick={() => {
+              if (window.confirm("Dieses angepinnte Referenzbild entfernen?")) props.onRemovePinnedReference(image.id);
+            }}
+          />
         ))}
         {props.uploadedReferences.map((entry) => (
           <ReferenceThumb
@@ -158,29 +178,34 @@ function PromptOptions(props: {
             }}
           />
         ))}
-        <label className={canUpload ? "upload-reference-button" : "upload-reference-button disabled"}>
-          <Upload size={16} />
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            disabled={!canUpload}
-            onChange={(event) => {
-              const files = Array.from(event.target.files ?? []);
-              if (files.length === 0) return;
-              const remainingSlots = Math.max(0, 3 - (props.pinnedImages.length + props.uploadedReferences.length));
-              if (remainingSlots === 0) {
-                window.alert("Maximal 3 Referenzbilder erlaubt.");
-                event.currentTarget.value = "";
-                return;
-              }
-              props.onUploadReferences(files.slice(0, remainingSlots));
-              if (files.length > remainingSlots) window.alert("Nur die ersten 3 Referenzen wurden übernommen.");
-              event.currentTarget.value = "";
-            }}
-          />
-        </label>
+        <div className={canUpload ? "btn-group upload-reference-group" : "btn-group upload-reference-group disabled"} role="group" aria-label="Referenzbild hinzufügen">
+          <label className="btn upload-reference-button" title="Bild hochladen">
+            <Upload size={16} />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              disabled={!canUpload}
+              onChange={(event) => {
+                handleReferenceSelection(event.target.files, event.currentTarget);
+              }}
+            />
+          </label>
+          <label className="btn upload-reference-button" title="Kamera öffnen">
+            <Camera size={16} />
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              hidden
+              disabled={!canUpload}
+              onChange={(event) => {
+                handleReferenceSelection(event.target.files, event.currentTarget);
+              }}
+            />
+          </label>
+        </div>
       </div>
       {!props.referencesEnabled && <small className="reference-warning">Das aktive Modell unterstützt keine Referenzbilder.</small>}
     </div>

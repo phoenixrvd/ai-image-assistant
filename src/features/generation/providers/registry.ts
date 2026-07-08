@@ -1,9 +1,10 @@
 import type { ModelConfigEntity } from "../../../db/entities";
+import { FalAiProvider } from "./falAiProvider";
 import { GrokProvider } from "./grokProvider";
 import { OpenAiCompatibleProvider } from "./openAiCompatibleProvider";
 import type { ProviderAdapter } from "./types";
 
-const providers: ProviderAdapter[] = [new GrokProvider(), new OpenAiCompatibleProvider()];
+const providers: ProviderAdapter[] = [new GrokProvider(), new OpenAiCompatibleProvider(), new FalAiProvider()];
 
 export function getProviderForModel(model: ModelConfigEntity): ProviderAdapter {
   if (model.provider === "grok") return providers[0];

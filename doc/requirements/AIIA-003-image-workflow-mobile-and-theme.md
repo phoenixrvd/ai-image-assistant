@@ -88,16 +88,18 @@ This requirement defines image presentation, per-image actions, prompt variation
 - The documented session flow includes traceable prompt history.
 - A user can follow earlier prompt attempts within the same session.
 
-### Do not persist failed generation attempts
+### Persist failed generation snapshots without failed chat history entries
 **Type:** Functional  
-**Description:** Wenn eine Bildgenerierung mit einem Fehler endet, darf der fehlgeschlagene Versuch nicht als Chat-Verlauf angezeigt oder lokal als Generationsergebnis persistiert werden.  
+**Description:** The system must persist an immutable technical generation-request snapshot at submit time, including failed attempts, without creating visible chat history entries for failed attempts.  
 **Acceptance Criteria:**
-- Bei einem fehlgeschlagenen Provider-Request wird keine Chat-Nachricht angezeigt.
-- Bei einem fehlgeschlagenen Provider-Request wird keine Chat-Nachricht gespeichert.
-- Bei einem fehlgeschlagenen Provider-Request werden keine Generation-Requests, Generation-Results oder Images gespeichert.
-- Die bestehende oder neu geöffnete Sitzung bleibt erhalten.
-- Der Prompt bleibt im Eingabefeld erhalten, damit der Versuch korrigiert oder erneut gestartet werden kann.
-- Der Fehler wird dem Nutzer sichtbar angezeigt.
+- A generation request snapshot is persisted immediately when submission starts.
+- The snapshot contains the prompt and effective generation parameters at submit time.
+- If generation fails, the request is marked as failed and may store an error message.
+- Failed attempts do not create a visible chat message.
+- Failed attempts do not create generation results or images.
+- The active chat remains usable after failure.
+- The prompt remains in the input field after failure.
+- The error is visible to the user for the active chat only.
 
 ### Repeat an earlier prompt from current session history
 **Type:** Functional  
@@ -151,9 +153,38 @@ This requirement defines image presentation, per-image actions, prompt variation
 - Image actions remain available on small screens.
 - The documented mobile UI avoids crowding out images with too many persistent controls.
 
+### Improve mobile request stability during active generation
+**Type:** Non-functional  
+**Description:** During an active image generation request, the system should reduce accidental interruption risk on mobile devices by using the Screen Wake Lock API when supported, without introducing backend jobs or background processing.  
+**Acceptance Criteria:**
+- When image generation starts, the system attempts to acquire a `screen` wake lock if `navigator.wakeLock` is available.
+- If wake lock acquisition fails or is unsupported, generation continues without functional degradation.
+- The wake lock is released immediately after the generation request completes (success or failure).
+- No server-side queue, job worker, or background processing is introduced by this behavior.
+
 ### Support light and dark themes
 **Type:** Functional  
 **Description:** The system must support both light and dark themes.  
 **Acceptance Criteria:**
 - The documented theme behavior includes a light theme.
 - The documented theme behavior includes a dark theme.
+
+### Show generation progress feedback
+**Type:** Functional  
+**Description:** The system must show a visual progress indicator during image generation, based on an estimated loading time for the active model.  
+**Acceptance Criteria:**
+- The send button displays a progress ring while an image generation is running.
+- The progress is derived from the estimated loading time of the active model.
+- The progress reaches at most 95% while the request is still running.
+- On successful completion, the progress briefly jumps to 100% before resetting.
+- On a failed request, the progress resets immediately without jumping to 100%.
+
+### Estimate model loading time from previous generations
+**Type:** Functional  
+**Description:** The system must persist an estimated loading time per provider plus model name combination to fill the progress indicator realistically.  
+**Acceptance Criteria:**
+- An estimated loading time in seconds is stored locally per provider plus model name combination.
+- If no estimate exists for a model, a fallback estimate of 30 seconds is used.
+- After the first successful image generation with a model, a record is created using the actually measured duration.
+- After each further successful image generation, the stored estimate is updated to the average of the previous and the newly measured duration.
+- Failed generations do not update the stored estimate.

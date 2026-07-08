@@ -5,11 +5,13 @@ import type {
   GenerationRequestEntity,
   GenerationResultEntity,
   ImageEntity,
+  JsonValue,
   MessageEntity,
-  ModelConfigEntity
+  ModelConfigEntity,
+  ModelLoadEstimateEntity
 } from "./entities";
 
-export const DB_SCHEMA_VERSION = 5;
+export const DB_SCHEMA_VERSION = 7;
 
 const DEFAULT_IMAGE_MODEL_IDS = ["grok-imagine-image", "grok-imagine-image-quality", "openai-image-1-5"];
 
@@ -18,12 +20,13 @@ const MODEL_CONFIG_STORE = {
   messages: "id, chatId, requestId, createdAt",
   images: "id, chatId, messageId, requestId, resultId, modelConfigId, pinned, createdAt",
   modelConfigs: "id, type, enabled, provider, updatedAt",
+  modelLoadEstimates: "id, provider, modelName, updatedAt",
   appOptions: "key, updatedAt",
   generationRequests: "id, chatId, messageId, modelConfigId, type, status, createdAt",
   generationResults: "id, requestId, chatId, messageId, type, createdAt"
 };
 
-const defaultModelConfigs = [
+const defaultModelConfigs: Array<Omit<ModelConfigEntity, "createdAt" | "updatedAt">> = [
   {
     id: "grok-imagine-image",
     displayName: "Grok Imagine Image",
@@ -33,7 +36,7 @@ const defaultModelConfigs = [
     modelName: "grok-imagine-image",
     enabled: true,
     supportsReferenceImages: false,
-    defaultParameters: { quality: "low" }
+    defaultParameters: { quality: "low" } as Record<string, JsonValue>
   },
   {
     id: "grok-imagine-image-quality",
@@ -44,7 +47,7 @@ const defaultModelConfigs = [
     modelName: "grok-imagine-image-quality",
     enabled: true,
     supportsReferenceImages: true,
-    defaultParameters: { quality: "low" }
+    defaultParameters: { quality: "low" } as Record<string, JsonValue>
   },
   {
     id: "openai-image-1-5",
@@ -55,7 +58,7 @@ const defaultModelConfigs = [
     modelName: "gpt-image-1.5",
     enabled: true,
     supportsReferenceImages: true,
-    defaultParameters: { quality: "low" }
+    defaultParameters: { quality: "low" } as Record<string, JsonValue>
   },
   {
     id: "openai-small-text",
@@ -65,6 +68,17 @@ const defaultModelConfigs = [
     baseUrl: "https://api.openai.com/v1",
     modelName: "gpt-4.1-nano",
     enabled: true
+  },
+  {
+    id: "fal-seedream-v5-lite-edit",
+    displayName: "fal.ai Seedream V5 Lite Edit",
+    provider: "fal-ai",
+    type: "image" as const,
+    baseUrl: "https://fal.run",
+    modelName: "fal-ai/bytedance/seedream/v5/lite/edit",
+    enabled: true,
+    supportsReferenceImages: true,
+    defaultParameters: { enable_safety_checker: false, sync_mode: true } as Record<string, JsonValue>
   }
 ];
 
@@ -74,6 +88,7 @@ class AiImageDatabase extends Dexie {
   images!: Table<ImageEntity, string>;
   modelConfigs!: Table<ModelConfigEntity, string>;
   appOptions!: Table<AppOptionEntity, string>;
+  modelLoadEstimates!: Table<ModelLoadEstimateEntity, string>;
   generationRequests!: Table<GenerationRequestEntity, string>;
   generationResults!: Table<GenerationResultEntity, string>;
 

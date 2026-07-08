@@ -17,3 +17,4 @@ Provider requests are processed directly from the frontend in version 1. Queuein
 - The generation flow remains simple and easy to understand.
 - Long provider runtimes directly affect the active user interaction.
 - Retry strategies, job persistence, parallel batch processing, or streaming require a separate future architecture decision.
+- The frontend may use best-effort client capabilities (for example Screen Wake Lock) to reduce interruption risk during active requests, without introducing a job system.

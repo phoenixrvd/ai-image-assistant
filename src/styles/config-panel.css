@@ -88,6 +88,7 @@
   display: inline-grid;
   width: 60px;
   height: 60px;
+  box-sizing: border-box;
   place-items: center;
   color: var(--bs-secondary-color);
   cursor: pointer;
@@ -96,13 +97,34 @@
   border-radius: var(--bs-border-radius-lg);
 }
 
+.upload-reference-group {
+  display: inline-flex;
+}
+
+.upload-reference-group .upload-reference-button {
+  --bs-btn-padding-y: 0;
+  --bs-btn-padding-x: 0;
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.upload-reference-group .upload-reference-button + .upload-reference-button {
+  margin-left: -1px;
+}
+
 .upload-reference-button:hover {
   color: var(--bs-body-color);
   border-color: rgba(var(--bs-primary-rgb), 0.65);
 }
 
-.upload-reference-button.disabled {
+.upload-reference-group.disabled {
   opacity: 0.45;
+}
+
+.upload-reference-group.disabled .upload-reference-button {
   cursor: not-allowed;
 }
 

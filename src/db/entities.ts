@@ -61,6 +61,13 @@ export interface ModelConfigEntity extends TimestampedEntity {
   defaultParameters?: Record<string, JsonValue>;
 }
 
+export interface ModelLoadEstimateEntity extends TimestampedEntity {
+  id: EntityId;
+  provider: string;
+  modelName: string;
+  seconds: number;
+}
+
 export interface AppOptionEntity {
   key: string;
   value: JsonValue;

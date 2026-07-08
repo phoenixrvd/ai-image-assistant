@@ -86,6 +86,15 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - Users can enter custom model names.
 - Free-form provider adapter plugins are outside the MVP scope.
 
+### Support multiple provider models without adding adapters
+**Type:** Functional  
+**Description:** Built-in provider adapters must support multiple provider model variants via local model configuration, so users can experiment with different provider models without implementing a new adapter for each model.  
+**Acceptance Criteria:**
+- A built-in provider adapter can be reused with different configured model identifiers.
+- Users can switch provider model variants by changing locally stored model configuration values.
+- Adding a new provider model variant does not require adding a separate provider adapter implementation when the API contract remains compatible.
+- Local provider and model configuration remains the source of truth for which provider model variant is used.
+
 ### Execute direct generation requests in the MVP
 **Type:** Constraint  
 **Description:** For the MVP, generation uses direct frontend request/response calls instead of backend job processing.  

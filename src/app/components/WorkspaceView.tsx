@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent, MouseEvent, RefObject } from "react";
-import { Download, Eraser, Image as ImageIcon, Pin, RotateCcw, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Download, Eraser, Image as ImageIcon, Pin, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { GenerationRequestEntity, ImageEntity } from "../../db/entities";
 import { formatMessageDate } from "../appHelpers";
+import { SendProgressButton } from "./SendProgressButton";
 
 const examplePrompts = [
   "Ein cineastisches Portrait einer Astronautin in einem Gewächshaus auf dem Mars, natürliches Licht, 35mm Filmlook.",
@@ -31,6 +32,7 @@ export function WorkspaceView(props: {
   setPrompt: (value: string) => void;
   canGenerate: boolean;
   isGenerating: boolean;
+  generationProgressPercent: number;
   error?: string;
   connectivityNotice?: string;
   messages: MessageView[];
@@ -133,9 +135,8 @@ export function WorkspaceView(props: {
             </div>
           </section>
         )}
-        {props.messages.map((message, index) => {
+        {props.messages.map((message) => {
           const request = message.requestId ? requestsById.get(message.requestId) : undefined;
-          const isLatestMessage = index === props.messages.length - 1;
           return (
             <article key={message.id} className="prompt-card">
               <p>{message.content}</p>
@@ -150,7 +151,6 @@ export function WorkspaceView(props: {
                 )}
                 <small className="message-time">{formatMessageDate(message.createdAt)}</small>
               </div>
-              {isLatestMessage && <span ref={latestMessageAnchorRef} className="message-scroll-anchor" aria-hidden="true" />}
               {!!imagesByMessageId.byMessage.get(message.id)?.length && (
                 <div className="image-grid">
                   {(imagesByMessageId.byMessage.get(message.id) ?? []).map((image) => (
@@ -170,6 +170,7 @@ export function WorkspaceView(props: {
             </div>
           </article>
         )}
+        <span ref={latestMessageAnchorRef} className="message-scroll-anchor" aria-hidden="true" />
       </div>
       <div ref={bottomOverlayRef} className="workspace-bottom-overlay">
         {props.error && <p className="alert alert-danger mb-0">{props.error}</p>}
@@ -181,7 +182,7 @@ export function WorkspaceView(props: {
             handleSubmit();
           }}
         >
-          <div className={props.isGenerating ? "prompt-input-shell is-generating" : "prompt-input-shell"}>
+          <div className="prompt-input-shell">
             <div
               ref={promptEditorRef}
               className="prompt-editable"
@@ -203,9 +204,12 @@ export function WorkspaceView(props: {
                   <Eraser size={18} aria-hidden="true" />
                 </button>
               </div>
-              <button className="btn btn-primary prompt-submit" type="submit" aria-label="Generieren" disabled={!props.canGenerate || props.isGenerating}>
-                <Send size={18} aria-hidden="true" />
-              </button>
+              <SendProgressButton
+                progressPercent={props.generationProgressPercent}
+                loading={props.isGenerating}
+                disabled={!props.canGenerate || props.isGenerating}
+                ariaLabel="Generieren"
+              />
             </div>
           </div>
         </form>
