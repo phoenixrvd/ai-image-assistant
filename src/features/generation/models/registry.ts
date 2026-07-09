@@ -69,14 +69,14 @@ class FalSeedreamV5LiteEdit implements StaticModel {
 class FalFlux2Flex implements StaticModel {
   id = "fal-flux-2-flex";
   providerId = "fal-ai" as const;
-  name = "FLUX.2 Flex";
+  name = "FLUX.2 Flex Edit";
   type = "image-edit" as const;
   providerModelName = "fal-ai/flux-2-flex/edit";
   supportsReferenceImages = true;
   requiresReferenceImages = true;
   defaultParameters = {
     enable_safety_checker: false,
-    safety_tolerance: "2",
+    safety_tolerance: "5",
     num_inference_steps: 36,
     sync_mode: true,
     output_format: "jpeg",
@@ -105,6 +105,46 @@ class FalFlux2Klein9bEdit implements StaticModel {
       square: { width: 1280, height: 1280 },
       portrait: { width: 720, height: 1280 },
       landscape: { width: 1280, height: 720 }
+    }
+  };
+}
+
+class FalNanoBananaLiteEdit implements StaticModel {
+  id = "fal-nano-banana-lite-edit";
+  providerId = "fal-ai" as const;
+  name = "Nano Banana Lite Edit";
+  type = "image-edit" as const;
+  providerModelName = "google/nano-banana-lite/edit";
+  supportsReferenceImages = true;
+  defaultParameters = {
+    sync_mode: true,
+    output_format: "png",
+    safety_tolerance: "6",
+    limit_generations: true,
+    aspect_ratio_by_aspect: {
+      square: "1:1",
+      portrait: "9:16",
+      landscape: "16:9"
+    }
+  };
+}
+
+class FalNanoBanana implements StaticModel {
+  id = "fal-nano-banana";
+  providerId = "fal-ai" as const;
+  name = "Nano Banana";
+  type = "image" as const;
+  providerModelName = "fal-ai/nano-banana";
+  supportsReferenceImages = false;
+  defaultParameters = {
+    sync_mode: true,
+    output_format: "png",
+    safety_tolerance: "6",
+    limit_generations: true,
+    aspect_ratio_by_aspect: {
+      square: "1:1",
+      portrait: "9:16",
+      landscape: "16:9"
     }
   };
 }
@@ -156,6 +196,8 @@ const models: StaticModel[] = [
   new FalSeedreamV5LiteEdit(),
   new FalFlux2Flex(),
   new FalFlux2Klein9bEdit(),
+  new FalNanoBanana(),
+  new FalNanoBananaLiteEdit(),
   new FalGrokImagineImage(),
   new FalGrokImagineEdit()
 ];
