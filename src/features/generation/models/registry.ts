@@ -188,6 +188,26 @@ class FalGrokImagineImage implements StaticModel {
   };
 }
 
+class FalOpenAiGptImage2Edit implements StaticModel {
+  id = "fal-openai-gpt-image-2-edit";
+  providerId = "fal-ai" as const;
+  name = "OpenAI GPT Image 2 Edit";
+  type = "image-edit" as const;
+  providerModelName = "openai/gpt-image-2/edit";
+  supportsReferenceImages = true;
+  requiresReferenceImages = true;
+  defaultParameters = {
+    quality: "low",
+    sync_mode: false,
+    output_format: "webp",
+    image_size_by_aspect: {
+      square: "auto",
+      portrait: "auto",
+      landscape: "auto"
+    }
+  };
+}
+
 const models: StaticModel[] = [
   new GrokImagineImage(),
   new GrokImagineImageQuality(),
@@ -199,7 +219,8 @@ const models: StaticModel[] = [
   new FalNanoBanana(),
   new FalNanoBananaLiteEdit(),
   new FalGrokImagineImage(),
-  new FalGrokImagineEdit()
+  new FalGrokImagineEdit(),
+  new FalOpenAiGptImage2Edit()
 ];
 
 export function listModels(): StaticModel[] {

@@ -1,11 +1,12 @@
 import { Fragment, useEffect, useState, type FormEvent } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Moon, Sun } from "lucide-react";
 import type { ProviderConfigEntity, ThemeMode } from "../../db/entities";
 import { appOptionsRepository } from "../../db/repositories/appOptionsRepository";
+import { modelLoadEstimateRepository } from "../../db/repositories/modelLoadEstimateRepository";
 import { isProviderUsable, providerConfigRepository } from "../../db/repositories/providerConfigRepository";
-import { getProviderDefinition, listModelsByProvider, providerDefinitions } from "../../features/generation/models/registry";
-import type { ProviderId } from "../../features/generation/models/types";
+import { getProviderDefinition, listModels, listModelsByProvider, providerDefinitions } from "../../features/generation/models/registry";
+import type { ProviderId, StaticModel } from "../../features/generation/models/types";
 import { appMetadata } from "../metadata";
 
 export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; theme: ThemeMode }) {
@@ -20,6 +21,20 @@ export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; th
     await queryClient.invalidateQueries({ queryKey: ["theme"] });
   }
 
+  const modelEstimateQuery = useQuery({
+    queryKey: ["modelLoadEstimates"],
+    queryFn: async () => {
+      const imageModels = listModels().filter((model) => model.type === "image" || model.type === "image-edit");
+      const entries = await Promise.all(
+        imageModels.map(async (model) => {
+          const seconds = await modelLoadEstimateRepository.getEstimatedSeconds(model.providerId, model.providerModelName);
+          return [estimateKey(model), seconds] as const;
+        })
+      );
+      return Object.fromEntries(entries);
+    }
+  });
+
   return (
     <section className="options-view container-xxl py-3">
       <section className="options-section" aria-labelledby="providers-heading">
@@ -30,7 +45,7 @@ export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; th
         </div>
         {providerDefinitions.map((definition) => {
           const provider = props.providerConfigs.find((entry) => entry.id === definition.id) ?? createProviderFallback(definition.id);
-          return <ProviderForm key={definition.id} provider={provider} onSave={(next) => saveProviderMutation.mutate(next)} />;
+          return <ProviderForm key={definition.id} provider={provider} estimates={modelEstimateQuery.data} onSave={(next) => saveProviderMutation.mutate(next)} />;
         })}
       </section>
       <section className="options-section" aria-labelledby="general-heading">
@@ -64,7 +79,7 @@ export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; th
   );
 }
 
-function ProviderForm(props: { provider: ProviderConfigEntity; onSave: (provider: ProviderConfigEntity) => void }) {
+function ProviderForm(props: { provider: ProviderConfigEntity; estimates?: Record<string, number>; onSave: (provider: ProviderConfigEntity) => void }) {
   const [provider, setProvider] = useState(props.provider);
   const [validated, setValidated] = useState(false);
   const usable = isProviderUsable(provider);
@@ -102,7 +117,7 @@ function ProviderForm(props: { provider: ProviderConfigEntity; onSave: (provider
         {activeModels.length > 0 ? (
           <ul className="mb-0 ps-3">
             {activeModels.map((model) => (
-              <li key={model.id}>{model.name}</li>
+              <li key={model.id}>{formatModelName(model, props.estimates)}</li>
             ))}
           </ul>
         ) : (
@@ -130,4 +145,14 @@ function createProviderFallback(providerId: ProviderId): ProviderConfigEntity {
 
 function fieldClass(invalid: boolean, showInvalid: boolean, baseClass: string): string {
   return invalid && showInvalid ? `${baseClass} is-invalid` : baseClass;
+}
+
+function formatModelName(model: StaticModel, estimates?: Record<string, number>): string {
+  if (model.type === "text") return model.name;
+  const seconds = estimates?.[estimateKey(model)] ?? 30;
+  return `${model.name} (~${Math.round(seconds)} sec.)`;
+}
+
+function estimateKey(model: Pick<StaticModel, "providerId" | "providerModelName">): string {
+  return `${model.providerId}::${model.providerModelName}`;
 }

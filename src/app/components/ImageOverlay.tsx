@@ -8,14 +8,17 @@ const minZoomScale = 1;
 
 type TouchPoint = { x: number; y: number };
 type PinchState = { startDistance: number; startScale: number };
+type PanState = { startPoint: TouchPoint; startOffset: TouchPoint };
 type TouchLike = { clientX: number; clientY: number };
 
 export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; onClose: () => void; onPrevious: () => void; onNext: () => void }) {
   const [url, setUrl] = useState<string>();
   const [zoomScale, setZoomScale] = useState(minZoomScale);
+  const [panOffset, setPanOffset] = useState<TouchPoint>({ x: 0, y: 0 });
   const currentUrlRef = useRef<string | undefined>(undefined);
   const touchStartRef = useRef<TouchPoint | undefined>(undefined);
   const pinchStateRef = useRef<PinchState | undefined>(undefined);
+  const panStateRef = useRef<PanState | undefined>(undefined);
   const swipedRef = useRef(false);
 
   useEffect(() => {
@@ -39,8 +42,10 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
   function resetZoom() {
     touchStartRef.current = undefined;
     pinchStateRef.current = undefined;
+    panStateRef.current = undefined;
     swipedRef.current = false;
     setZoomScale(minZoomScale);
+    setPanOffset({ x: 0, y: 0 });
   }
 
   function closeOverlay() {
@@ -82,6 +87,17 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
         startScale: zoomScale
       };
       touchStartRef.current = undefined;
+      panStateRef.current = undefined;
+      swipedRef.current = false;
+      return;
+    }
+
+    if (event.touches.length === 1 && zoomScale > minZoomScale) {
+      panStateRef.current = {
+        startPoint: { x: event.touches[0].clientX, y: event.touches[0].clientY },
+        startOffset: panOffset
+      };
+      touchStartRef.current = undefined;
       swipedRef.current = false;
       return;
     }
@@ -97,19 +113,32 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
 
   function handleTouchMove(event: TouchEvent<HTMLImageElement>) {
     const pinchState = pinchStateRef.current;
-    if (!pinchState || event.touches.length !== 2) return;
+    if (pinchState && event.touches.length === 2) {
+      if (event.cancelable) event.preventDefault();
+      const [first, second] = [event.touches[0], event.touches[1]];
+      const currentDistance = readDistance(first, second);
+      if (pinchState.startDistance <= 0) return;
+
+      const nextScale = clampZoom((currentDistance / pinchState.startDistance) * pinchState.startScale);
+      setZoomScale(nextScale);
+      if (nextScale === minZoomScale) setPanOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    const panState = panStateRef.current;
+    if (!panState || event.touches.length !== 1 || zoomScale <= minZoomScale) return;
 
     if (event.cancelable) event.preventDefault();
-    const [first, second] = [event.touches[0], event.touches[1]];
-    const currentDistance = readDistance(first, second);
-    if (pinchState.startDistance <= 0) return;
-
-    const nextScale = clampZoom((currentDistance / pinchState.startDistance) * pinchState.startScale);
-    setZoomScale(nextScale);
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - panState.startPoint.x;
+    const deltaY = touch.clientY - panState.startPoint.y;
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) swipedRef.current = true;
+    setPanOffset({ x: panState.startOffset.x + deltaX, y: panState.startOffset.y + deltaY });
   }
 
   function handleTouchEnd(event: TouchEvent<HTMLImageElement>) {
     if (event.touches.length < 2) pinchStateRef.current = undefined;
+    if (event.touches.length === 0) panStateRef.current = undefined;
     if (zoomScale > minZoomScale || !props.canNavigate) return;
 
     const start = touchStartRef.current;
@@ -131,6 +160,7 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
   function handleTouchCancel() {
     touchStartRef.current = undefined;
     pinchStateRef.current = undefined;
+    panStateRef.current = undefined;
   }
 
   useEffect(() => {
@@ -176,7 +206,7 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
           className="image-overlay-preview image-overlay-preview-current"
           src={url}
           alt={props.image.prompt ?? "Bildvorschau"}
-          style={{ transform: `scale(${zoomScale})` }}
+          style={{ transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomScale})` }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
