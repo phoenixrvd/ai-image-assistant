@@ -1,13 +1,21 @@
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ImageEntity } from "../../db/entities";
 
 const swipeThreshold = 45;
+const maxZoomScale = 4;
+const minZoomScale = 1;
+
+type TouchPoint = { x: number; y: number };
+type PinchState = { startDistance: number; startScale: number };
+type TouchLike = { clientX: number; clientY: number };
 
 export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; onClose: () => void; onPrevious: () => void; onNext: () => void }) {
   const [url, setUrl] = useState<string>();
+  const [zoomScale, setZoomScale] = useState(minZoomScale);
   const currentUrlRef = useRef<string | undefined>(undefined);
-  const pointerStartRef = useRef<{ x: number; y: number } | undefined>(undefined);
+  const touchStartRef = useRef<TouchPoint | undefined>(undefined);
+  const pinchStateRef = useRef<PinchState | undefined>(undefined);
   const swipedRef = useRef(false);
 
   useEffect(() => {
@@ -25,36 +33,94 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
   }, []);
 
   useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.key === "Escape") props.onClose();
-      if (!props.canNavigate) return;
-      if (event.key === "ArrowLeft") showPreviousImage();
-      if (event.key === "ArrowRight") showNextImage();
-    };
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, [props.canNavigate, props.onClose, props.onNext, props.onPrevious]);
+    resetZoom();
+  }, [props.image.id]);
+
+  function resetZoom() {
+    touchStartRef.current = undefined;
+    pinchStateRef.current = undefined;
+    swipedRef.current = false;
+    setZoomScale(minZoomScale);
+  }
+
+  function closeOverlay() {
+    resetZoom();
+    props.onClose();
+  }
+
+  function clampZoom(value: number) {
+    return Math.max(minZoomScale, Math.min(maxZoomScale, value));
+  }
+
+  function readDistance(first: TouchLike, second: TouchLike) {
+    const deltaX = second.clientX - first.clientX;
+    const deltaY = second.clientY - first.clientY;
+    return Math.hypot(deltaX, deltaY);
+  }
+
+  function readTouchPoint(event: TouchEvent<HTMLImageElement>) {
+    const touch = event.changedTouches[0];
+    if (!touch) return undefined;
+    return { x: touch.clientX, y: touch.clientY };
+  }
 
   function showPreviousImage() {
+    resetZoom();
     props.onPrevious();
   }
 
   function showNextImage() {
+    resetZoom();
     props.onNext();
   }
 
-  function handlePointerDown(event: PointerEvent<HTMLImageElement>) {
-    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+  function handleTouchStart(event: TouchEvent<HTMLImageElement>) {
+    if (event.touches.length === 2) {
+      const [first, second] = [event.touches[0], event.touches[1]];
+      pinchStateRef.current = {
+        startDistance: readDistance(first, second),
+        startScale: zoomScale
+      };
+      touchStartRef.current = undefined;
+      swipedRef.current = false;
+      return;
+    }
+
+    if (event.touches.length !== 1 || zoomScale > minZoomScale || !props.canNavigate) {
+      touchStartRef.current = undefined;
+      return;
+    }
+
+    touchStartRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
     swipedRef.current = false;
   }
 
-  function handlePointerUp(event: PointerEvent<HTMLImageElement>) {
-    const start = pointerStartRef.current;
-    pointerStartRef.current = undefined;
-    if (!start || !props.canNavigate) return;
+  function handleTouchMove(event: TouchEvent<HTMLImageElement>) {
+    const pinchState = pinchStateRef.current;
+    if (!pinchState || event.touches.length !== 2) return;
 
-    const deltaX = event.clientX - start.x;
-    const deltaY = event.clientY - start.y;
+    if (event.cancelable) event.preventDefault();
+    const [first, second] = [event.touches[0], event.touches[1]];
+    const currentDistance = readDistance(first, second);
+    if (pinchState.startDistance <= 0) return;
+
+    const nextScale = clampZoom((currentDistance / pinchState.startDistance) * pinchState.startScale);
+    setZoomScale(nextScale);
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLImageElement>) {
+    if (event.touches.length < 2) pinchStateRef.current = undefined;
+    if (zoomScale > minZoomScale || !props.canNavigate) return;
+
+    const start = touchStartRef.current;
+    touchStartRef.current = undefined;
+    if (!start) return;
+
+    const end = readTouchPoint(event);
+    if (!end) return;
+
+    const deltaX = end.x - start.x;
+    const deltaY = end.y - start.y;
     if (Math.abs(deltaX) < swipeThreshold || Math.abs(deltaX) < Math.abs(deltaY)) return;
 
     swipedRef.current = true;
@@ -62,19 +128,35 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
     else showNextImage();
   }
 
+  function handleTouchCancel() {
+    touchStartRef.current = undefined;
+    pinchStateRef.current = undefined;
+  }
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeOverlay();
+      if (!props.canNavigate) return;
+      if (event.key === "ArrowLeft") showPreviousImage();
+      if (event.key === "ArrowRight") showNextImage();
+    };
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, [props.canNavigate, props.onNext, props.onPrevious]);
+
   function handlePreviewClick(event: MouseEvent<HTMLImageElement>) {
     event.stopPropagation();
     if (swipedRef.current) {
       swipedRef.current = false;
       return;
     }
-    props.onClose();
+    closeOverlay();
   }
 
   if (!url) return null;
 
   return (
-    <div className="image-overlay" role="dialog" aria-modal="true" aria-label="Bildvorschau" onClick={props.onClose}>
+    <div className="image-overlay" role="dialog" aria-modal="true" aria-label="Bildvorschau" onClick={closeOverlay}>
       <div className="image-overlay-blur" style={{ backgroundImage: `url(${url})` }} />
       {props.canNavigate && (
         <button
@@ -94,8 +176,11 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
           className="image-overlay-preview image-overlay-preview-current"
           src={url}
           alt={props.image.prompt ?? "Bildvorschau"}
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
+          style={{ transform: `scale(${zoomScale})` }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
           onClick={handlePreviewClick}
         />
       </div>

@@ -1,5 +1,5 @@
 export type EntityId = string;
-export type ModelType = "chat" | "image";
+export type ModelType = "text" | "image" | "image-edit";
 export type MessageRole = "user" | "assistant" | "system";
 export type GenerationStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled";
 export type ThemeMode = "light" | "dark" | "system";
@@ -43,22 +43,16 @@ export interface ImageEntity extends TimestampedEntity {
   height?: number;
   sizeBytes?: number;
   prompt?: string;
-  modelConfigId?: EntityId;
+  modelId?: EntityId;
   parameters?: Record<string, JsonValue>;
   pinned?: boolean;
 }
 
-export interface ModelConfigEntity extends TimestampedEntity {
+export interface ProviderConfigEntity extends TimestampedEntity {
   id: EntityId;
-  displayName: string;
-  provider: string;
-  type: ModelType;
   baseUrl: string;
   apiKey?: string;
-  modelName: string;
   enabled?: boolean;
-  supportsReferenceImages?: boolean;
-  defaultParameters?: Record<string, JsonValue>;
 }
 
 export interface ModelLoadEstimateEntity extends TimestampedEntity {
@@ -78,7 +72,7 @@ export interface GenerationRequestEntity extends TimestampedEntity {
   id: EntityId;
   chatId: EntityId;
   messageId?: EntityId;
-  modelConfigId: EntityId;
+  modelId: EntityId;
   type: ModelType;
   prompt: string;
   parameters?: Record<string, JsonValue>;

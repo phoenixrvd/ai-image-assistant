@@ -5,17 +5,23 @@ import type {
   GenerationRequestEntity,
   GenerationResultEntity,
   ImageEntity,
-  JsonValue,
   MessageEntity,
-  ModelConfigEntity,
-  ModelLoadEstimateEntity
+  ModelLoadEstimateEntity,
+  ProviderConfigEntity
 } from "./entities";
 
-export const DB_SCHEMA_VERSION = 7;
+export const DB_SCHEMA_VERSION = 9;
 
-const DEFAULT_IMAGE_MODEL_IDS = ["grok-imagine-image", "grok-imagine-image-quality", "openai-image-1-5"];
+type LegacyModelConfigEntity = {
+  id: string;
+  provider: string;
+  baseUrl: string;
+  apiKey?: string;
+  enabled?: boolean;
+  updatedAt?: string;
+};
 
-const MODEL_CONFIG_STORE = {
+const LEGACY_MODEL_CONFIG_STORE = {
   chats: "id, updatedAt, lastMessageAt, pinned, archived",
   messages: "id, chatId, requestId, createdAt",
   images: "id, chatId, messageId, requestId, resultId, modelConfigId, pinned, createdAt",
@@ -26,67 +32,30 @@ const MODEL_CONFIG_STORE = {
   generationResults: "id, requestId, chatId, messageId, type, createdAt"
 };
 
-const defaultModelConfigs: Array<Omit<ModelConfigEntity, "createdAt" | "updatedAt">> = [
-  {
-    id: "grok-imagine-image",
-    displayName: "Grok Imagine Image",
-    provider: "xai",
-    type: "image" as const,
-    baseUrl: "https://api.x.ai/v1",
-    modelName: "grok-imagine-image",
-    enabled: true,
-    supportsReferenceImages: false,
-    defaultParameters: { quality: "low" } as Record<string, JsonValue>
-  },
-  {
-    id: "grok-imagine-image-quality",
-    displayName: "Grok Imagine Image Quality",
-    provider: "xai",
-    type: "image" as const,
-    baseUrl: "https://api.x.ai/v1",
-    modelName: "grok-imagine-image-quality",
-    enabled: true,
-    supportsReferenceImages: true,
-    defaultParameters: { quality: "low" } as Record<string, JsonValue>
-  },
-  {
-    id: "openai-image-1-5",
-    displayName: "OpenAI Image 1.5",
-    provider: "openai-compatible",
-    type: "image" as const,
-    baseUrl: "https://api.openai.com/v1",
-    modelName: "gpt-image-1.5",
-    enabled: true,
-    supportsReferenceImages: true,
-    defaultParameters: { quality: "low" } as Record<string, JsonValue>
-  },
-  {
-    id: "openai-small-text",
-    displayName: "OpenAI Small Text",
-    provider: "openai-compatible",
-    type: "chat" as const,
-    baseUrl: "https://api.openai.com/v1",
-    modelName: "gpt-4.1-nano",
-    enabled: true
-  },
-  {
-    id: "fal-seedream-v5-lite-edit",
-    displayName: "fal.ai Seedream V5 Lite Edit",
-    provider: "fal-ai",
-    type: "image" as const,
-    baseUrl: "https://fal.run",
-    modelName: "fal-ai/bytedance/seedream/v5/lite/edit",
-    enabled: true,
-    supportsReferenceImages: true,
-    defaultParameters: { enable_safety_checker: false, sync_mode: true } as Record<string, JsonValue>
-  }
+const PROVIDER_CONFIG_TRANSITION_STORE = { ...LEGACY_MODEL_CONFIG_STORE, providerConfigs: "id, enabled, updatedAt" };
+
+const PROVIDER_CONFIG_STORE = {
+  chats: "id, updatedAt, lastMessageAt, pinned, archived",
+  messages: "id, chatId, requestId, createdAt",
+  images: "id, chatId, messageId, requestId, resultId, modelId, pinned, createdAt",
+  providerConfigs: "id, enabled, updatedAt",
+  modelLoadEstimates: "id, provider, modelName, updatedAt",
+  appOptions: "key, updatedAt",
+  generationRequests: "id, chatId, messageId, modelId, type, status, createdAt",
+  generationResults: "id, requestId, chatId, messageId, type, createdAt"
+};
+
+const defaultProviderConfigs: Array<Omit<ProviderConfigEntity, "createdAt" | "updatedAt">> = [
+  { id: "xai", baseUrl: "https://api.x.ai/v1", enabled: true },
+  { id: "openai", baseUrl: "https://api.openai.com/v1", enabled: true },
+  { id: "fal-ai", baseUrl: "https://fal.run", enabled: true }
 ];
 
 class AiImageDatabase extends Dexie {
   chats!: Table<ChatEntity, string>;
   messages!: Table<MessageEntity, string>;
   images!: Table<ImageEntity, string>;
-  modelConfigs!: Table<ModelConfigEntity, string>;
+  providerConfigs!: Table<ProviderConfigEntity, string>;
   appOptions!: Table<AppOptionEntity, string>;
   modelLoadEstimates!: Table<ModelLoadEstimateEntity, string>;
   generationRequests!: Table<GenerationRequestEntity, string>;
@@ -94,76 +63,73 @@ class AiImageDatabase extends Dexie {
 
   constructor() {
     super("ai-image-assistant");
-    this.version(1).stores(MODEL_CONFIG_STORE);
-    this.version(2).stores(MODEL_CONFIG_STORE).upgrade(async (transaction) => {
-      await seedDefaultModelConfigs(transaction.table("modelConfigs"));
+    this.version(1).stores(LEGACY_MODEL_CONFIG_STORE);
+    this.version(2).stores(LEGACY_MODEL_CONFIG_STORE);
+    this.version(7).stores(LEGACY_MODEL_CONFIG_STORE);
+    this.version(8).stores(PROVIDER_CONFIG_TRANSITION_STORE).upgrade(async (transaction) => {
+      await migrateModelConfigsToProviderConfigs(transaction.table("modelConfigs"), transaction.table("providerConfigs"));
     });
-    this.version(DB_SCHEMA_VERSION).stores(MODEL_CONFIG_STORE).upgrade(async (transaction) => {
-      const modelConfigs = transaction.table<ModelConfigEntity, string>("modelConfigs");
-      await seedDefaultModelConfigs(modelConfigs);
-      await updateXaiDefaultModelNames(modelConfigs);
-      await migrateReferenceImageSupport(modelConfigs);
-      await migrateDefaultImageQualityToLow(modelConfigs);
+    this.version(DB_SCHEMA_VERSION).stores(PROVIDER_CONFIG_STORE).upgrade(async (transaction) => {
+      await migrateStoredModelIds(transaction.table("images"));
+      await migrateStoredModelIds(transaction.table("generationRequests"));
+      await seedDefaultProviderConfigs(transaction.table("providerConfigs"));
     });
     this.on("populate", async (transaction) => {
-      await seedDefaultModelConfigs(transaction.table("modelConfigs"));
+      await seedDefaultProviderConfigs(transaction.table("providerConfigs"));
     });
   }
 }
 
-async function updateXaiDefaultModelNames(modelConfigs: Table<ModelConfigEntity, string>): Promise<void> {
-  await modelConfigs.update("grok-imagine-image", {
-    modelName: "grok-imagine-image",
-    supportsReferenceImages: false,
-    defaultParameters: { quality: "low" },
-    updatedAt: new Date().toISOString()
-  });
-  await modelConfigs.update("grok-imagine-image-quality", {
-    modelName: "grok-imagine-image-quality",
-    supportsReferenceImages: true,
-    defaultParameters: { quality: "low" },
-    updatedAt: new Date().toISOString()
-  });
-}
+export const db = new AiImageDatabase();
 
-async function migrateDefaultImageQualityToLow(modelConfigs: Table<ModelConfigEntity, string>): Promise<void> {
+async function seedDefaultProviderConfigs(providerConfigs: Table<ProviderConfigEntity, string>): Promise<void> {
   const now = new Date().toISOString();
   await Promise.all(
-    DEFAULT_IMAGE_MODEL_IDS.map(async (id) => {
-      const model = await modelConfigs.get(id);
-      if (!model) return;
-      await modelConfigs.update(id, {
-        defaultParameters: { ...(model.defaultParameters ?? {}), quality: "low" },
+    defaultProviderConfigs.map(async (provider) => {
+      const existing = await providerConfigs.get(provider.id);
+      if (existing) return;
+      await providerConfigs.add({ ...provider, createdAt: now, updatedAt: now });
+    })
+  );
+}
+
+async function migrateModelConfigsToProviderConfigs(modelConfigs: Table<LegacyModelConfigEntity, string>, providerConfigs: Table<ProviderConfigEntity, string>): Promise<void> {
+  const legacyModels = await modelConfigs.toArray();
+  const now = new Date().toISOString();
+  await Promise.all(
+    defaultProviderConfigs.map(async (provider) => {
+      const legacy = selectLegacyProviderConfig(legacyModels, provider.id);
+      await providerConfigs.put({
+        id: provider.id,
+        baseUrl: legacy?.baseUrl?.trim() || provider.baseUrl,
+        apiKey: legacy?.apiKey,
+        enabled: legacy?.enabled ?? provider.enabled,
+        createdAt: now,
         updatedAt: now
       });
     })
   );
 }
 
-async function migrateReferenceImageSupport(modelConfigs: Table<ModelConfigEntity, string>): Promise<void> {
-  const now = new Date().toISOString();
-  const models = await modelConfigs.toArray();
-  await Promise.all(
-    models
-      .filter((model) => model.type === "image")
-      .map((model) =>
-        modelConfigs.update(model.id, {
-          supportsReferenceImages: model.id !== "grok-imagine-image",
-          updatedAt: now
-        })
-      )
-  );
+function selectLegacyProviderConfig(models: LegacyModelConfigEntity[], providerId: string): LegacyModelConfigEntity | undefined {
+  const aliases = providerId === "openai" ? ["openai-compatible"] : providerId === "xai" ? ["xai", "grok"] : [providerId];
+  return models
+    .filter((model) => aliases.includes(model.provider))
+    .sort((left, right) => scoreLegacyModel(right) - scoreLegacyModel(left))[0];
 }
 
-export const db = new AiImageDatabase();
+function scoreLegacyModel(model: LegacyModelConfigEntity): number {
+  return (model.apiKey?.trim() ? 4 : 0) + (model.enabled !== false ? 2 : 0) + (model.baseUrl?.trim() ? 1 : 0);
+}
 
-async function seedDefaultModelConfigs(modelConfigs: Table<ModelConfigEntity, string>): Promise<void> {
-  const now = new Date().toISOString();
+async function migrateStoredModelIds(table: Table<Record<string, unknown>, string>): Promise<void> {
+  const rows = await table.toArray();
   await Promise.all(
-    defaultModelConfigs.map(async (model) => {
-      const existing = await modelConfigs.get(model.id);
-      if (existing) return;
-      await modelConfigs.add({ ...model, createdAt: now, updatedAt: now });
+    rows.map(async (row) => {
+      if (typeof row.modelConfigId !== "string" || typeof row.id !== "string") return;
+      const next: Record<string, unknown> = { ...row, modelId: row.modelConfigId };
+      delete next.modelConfigId;
+      await table.put(next);
     })
   );
 }

@@ -288,7 +288,7 @@
 .send-button__icon {
   position: relative;
   z-index: 4;
-  transform: translateX(1px);
+  display: block;
 }
 
 .send-button:not(.is-loading) .send-button__ring {

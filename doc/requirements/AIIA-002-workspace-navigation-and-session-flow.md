@@ -208,6 +208,15 @@ This requirement defines the functional UI zones and the session-oriented flow a
 - Unpinning a pinned reference image keeps the generated image in chat history.
 - The reference-image click interaction keeps the workspace scroll position unchanged.
 
+### Use a storage-efficient size cap for generated images
+**Type:** Non-functional  
+**Description:** Generated images must use a storage-efficient size cap before local persistence to keep mobile-first workflows fast and local storage compact.  
+**Acceptance Criteria:**
+- Before an image is stored locally after generation, its long edge is capped at `1280` pixels for all providers and models.
+- The cap is applied by downscaling only; generated images are not upscaled.
+- Downscaling keeps the original aspect ratio and avoids forced cropping.
+- If the product's target image quality or output resolution is increased later, the generated-image size-cap strategy must be re-evaluated.
+
 ### Offer image count selection as a dropdown
 **Type:** Functional  
 **Description:** The system must allow the user to select the number of generated images through a dropdown.  

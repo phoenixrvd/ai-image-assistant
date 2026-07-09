@@ -10,7 +10,7 @@ export interface CreateImageInput {
   blob: Blob;
   mimeType?: string;
   prompt?: string;
-  modelConfigId?: string;
+  modelId?: string;
   pinned?: boolean;
   parameters?: Record<string, JsonValue>;
 }

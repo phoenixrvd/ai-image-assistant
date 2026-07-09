@@ -1,25 +1,18 @@
 import { Fragment, useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Moon, Plus, Sun, Trash2 } from "lucide-react";
-import type { ModelConfigEntity, ThemeMode } from "../../db/entities";
+import { Moon, Sun } from "lucide-react";
+import type { ProviderConfigEntity, ThemeMode } from "../../db/entities";
 import { appOptionsRepository } from "../../db/repositories/appOptionsRepository";
-import { isModelUsable, modelConfigRepository, modelSupportsReferenceImages } from "../../db/repositories/modelConfigRepository";
-import { listProviderOptions } from "../../features/generation/providers/registry";
+import { isProviderUsable, providerConfigRepository } from "../../db/repositories/providerConfigRepository";
+import { getProviderDefinition, listModelsByProvider, providerDefinitions } from "../../features/generation/models/registry";
+import type { ProviderId } from "../../features/generation/models/types";
 import { appMetadata } from "../metadata";
 
-export function OptionsView(props: { models: ModelConfigEntity[]; theme: ThemeMode }) {
+export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; theme: ThemeMode }) {
   const queryClient = useQueryClient();
-  const addModelMutation = useMutation({
-    mutationFn: () => modelConfigRepository.createDraft(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["models"] })
-  });
-  const saveModelMutation = useMutation({
-    mutationFn: (model: ModelConfigEntity) => modelConfigRepository.save(model),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["models"] })
-  });
-  const deleteModelMutation = useMutation({
-    mutationFn: (id: string) => modelConfigRepository.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["models"] })
+  const saveProviderMutation = useMutation({
+    mutationFn: (provider: ProviderConfigEntity) => providerConfigRepository.save(provider),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerConfigs"] })
   });
 
   async function setTheme(theme: ThemeMode) {
@@ -29,18 +22,16 @@ export function OptionsView(props: { models: ModelConfigEntity[]; theme: ThemeMo
 
   return (
     <section className="options-view container-xxl py-3">
-      <section className="options-section" aria-labelledby="models-heading">
+      <section className="options-section" aria-labelledby="providers-heading">
         <div className="d-flex align-items-center justify-content-between gap-3">
-          <h2 id="models-heading" className="h5 mb-0">
-            Models
+          <h2 id="providers-heading" className="h5 mb-0">
+            Provider
           </h2>
-          <button className="btn btn-outline-secondary" aria-label="Modell hinzufügen" onClick={() => addModelMutation.mutate()}>
-            <Plus size={18} />
-          </button>
         </div>
-        {props.models.map((model) => (
-          <ModelForm key={model.id} model={model} onDelete={(id) => deleteModelMutation.mutate(id)} onSave={(next) => saveModelMutation.mutate(next)} />
-        ))}
+        {providerDefinitions.map((definition) => {
+          const provider = props.providerConfigs.find((entry) => entry.id === definition.id) ?? createProviderFallback(definition.id);
+          return <ProviderForm key={definition.id} provider={provider} onSave={(next) => saveProviderMutation.mutate(next)} />;
+        })}
       </section>
       <section className="options-section" aria-labelledby="general-heading">
         <h2 id="general-heading" className="h5 mb-0">
@@ -73,122 +64,70 @@ export function OptionsView(props: { models: ModelConfigEntity[]; theme: ThemeMo
   );
 }
 
-function ModelForm(props: { model: ModelConfigEntity; onDelete: (id: string) => void; onSave: (model: ModelConfigEntity) => void }) {
-  const [model, setModel] = useState(props.model);
+function ProviderForm(props: { provider: ProviderConfigEntity; onSave: (provider: ProviderConfigEntity) => void }) {
+  const [provider, setProvider] = useState(props.provider);
   const [validated, setValidated] = useState(false);
-  const usable = isModelUsable(model, model.type);
-  const shouldShowSavedErrors = !validated && model.enabled !== false;
+  const usable = isProviderUsable(provider);
+  const definition = getProviderDefinition(provider.id);
+  const activeModels = usable ? listModelsByProvider(provider.id as ProviderId).sort((left, right) => left.name.localeCompare(right.name, "de", { sensitivity: "base" })) : [];
+  const shouldShowSavedErrors = !validated && provider.enabled !== false;
 
-  useEffect(() => setModel(props.model), [props.model]);
+  useEffect(() => setProvider(props.provider), [props.provider]);
 
-  function submitModel(event: FormEvent<HTMLFormElement>) {
+  function submitProvider(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setValidated(true);
     if (!event.currentTarget.checkValidity()) return;
-    props.onSave(model);
+    props.onSave(provider);
   }
 
   return (
-    <form className={validated ? "model-form was-validated" : "model-form"} noValidate onSubmit={submitModel}>
+    <form className={validated ? "model-form was-validated" : "model-form"} noValidate onSubmit={submitProvider}>
+      <h3 className="h6 mb-0">{definition?.label ?? provider.id}</h3>
       <div className="form-floating">
-        <input id={`model-display-${model.id}`} className={fieldClass(!model.displayName.trim(), shouldShowSavedErrors, "form-control")} value={model.displayName} placeholder="Anzeigename" required onChange={(event) => setModel({ ...model, displayName: event.target.value })} />
-        <label htmlFor={`model-display-${model.id}`}>Anzeigename</label>
-        <div className="invalid-feedback">Bitte einen Anzeigenamen eingeben.</div>
-      </div>
-      <div className="form-floating">
-        <select
-          id={`model-type-${model.id}`}
-          className="form-select"
-          value={model.type}
-          required
-          onChange={(event) => {
-            const type = event.target.value as ModelConfigEntity["type"];
-            setModel({ ...model, type, supportsReferenceImages: type === "image" ? modelSupportsReferenceImages(model) : false });
-          }}
-        >
-          <option value="image">Bildmodell</option>
-          <option value="chat">Textmodell</option>
-        </select>
-        <label htmlFor={`model-type-${model.id}`}>Modelltyp</label>
-        <div className="invalid-feedback">Bitte einen Modelltyp wählen.</div>
-      </div>
-      <div className="form-floating">
-        <select id={`model-provider-${model.id}`} className={fieldClass(!model.provider.trim(), shouldShowSavedErrors, "form-select")} value={model.provider === "grok" ? "xai" : model.provider} required onChange={(event) => setModel({ ...model, provider: event.target.value })}>
-          <option value="" disabled>
-            Provider wählen
-          </option>
-          {listProviderOptions().map((provider) => (
-            <option key={provider.id} value={provider.id}>
-              {provider.label}
-            </option>
-          ))}
-        </select>
-        <label htmlFor={`model-provider-${model.id}`}>Provider</label>
-        <div className="invalid-feedback">Bitte einen Provider wählen.</div>
-      </div>
-      <div className="form-floating">
-        <input id={`model-url-${model.id}`} className={fieldClass(!model.baseUrl.trim(), shouldShowSavedErrors, "form-control")} value={model.baseUrl} placeholder="https://api.x.ai/v1" required onChange={(event) => setModel({ ...model, baseUrl: event.target.value })} />
-        <label htmlFor={`model-url-${model.id}`}>Base URL</label>
+        <input id={`provider-url-${provider.id}`} className={fieldClass(!provider.baseUrl.trim(), shouldShowSavedErrors, "form-control")} value={provider.baseUrl} placeholder={definition?.defaultBaseUrl ?? "https://api.example.com"} required onChange={(event) => setProvider({ ...provider, baseUrl: event.target.value })} />
+        <label htmlFor={`provider-url-${provider.id}`}>Base URL</label>
         <div className="invalid-feedback">Bitte eine Base URL eingeben.</div>
       </div>
       <div className="form-floating">
-        <input id={`model-key-${model.id}`} className={fieldClass(!model.apiKey?.trim(), shouldShowSavedErrors, "form-control")} value={model.apiKey ?? ""} type="password" placeholder="API-Key" required onChange={(event) => setModel({ ...model, apiKey: event.target.value })} />
-        <label htmlFor={`model-key-${model.id}`}>API-Key</label>
+        <input id={`provider-key-${provider.id}`} className={fieldClass(!provider.apiKey?.trim(), shouldShowSavedErrors, "form-control")} value={provider.apiKey ?? ""} type="password" placeholder="API-Key" required onChange={(event) => setProvider({ ...provider, apiKey: event.target.value })} />
+        <label htmlFor={`provider-key-${provider.id}`}>API-Key</label>
         <div className="invalid-feedback">Bitte einen API-Key eingeben.</div>
       </div>
-      <div className="form-floating">
-        <input id={`model-name-${model.id}`} className={fieldClass(!model.modelName.trim(), shouldShowSavedErrors, "form-control")} value={model.modelName} placeholder="grok-2-image" required onChange={(event) => setModel({ ...model, modelName: event.target.value })} />
-        <label htmlFor={`model-name-${model.id}`}>Modellname</label>
-        <div className="invalid-feedback">Bitte einen Modellnamen eingeben.</div>
-      </div>
-      {model.type === "image" && (
-        <div className="form-floating">
-          <input id={`model-quality-${model.id}`} className="form-control" value={String(model.defaultParameters?.quality ?? "")} placeholder="low" onChange={(event) => setModel(setModelQuality(model, event.target.value))} />
-          <label htmlFor={`model-quality-${model.id}`}>Quality</label>
-        </div>
-      )}
       <label className="form-check d-inline-flex align-items-center gap-2">
-        <input className="form-check-input" type="checkbox" checked={model.enabled !== false} onChange={(event) => setModel({ ...model, enabled: event.target.checked })} /> <span className="form-check-label">Aktiviert</span>
+        <input className="form-check-input" type="checkbox" checked={provider.enabled !== false} onChange={(event) => setProvider({ ...provider, enabled: event.target.checked })} /> <span className="form-check-label">Aktiviert</span>
       </label>
-      {model.type === "image" && (
-        <label className="form-check d-inline-flex align-items-center gap-2">
-          <input className="form-check-input" type="checkbox" checked={modelSupportsReferenceImages(model)} onChange={(event) => setModel({ ...model, supportsReferenceImages: event.target.checked })} /> <span className="form-check-label">Unterstützt Referenzbilder</span>
-        </label>
-      )}
+      <div className="small text-secondary">
+        <div>Aktive Modelle</div>
+        {activeModels.length > 0 ? (
+          <ul className="mb-0 ps-3">
+            {activeModels.map((model) => (
+              <li key={model.id}>{model.name}</li>
+            ))}
+          </ul>
+        ) : (
+          <span>keine</span>
+        )}
+      </div>
       <div className="d-flex align-items-center justify-content-between gap-3">
         <span className={usable ? "model-status model-status--usable" : "model-status model-status--incomplete"}>
           <span className="model-status__dot" aria-hidden="true" />
-          <span>{usable ? "verwendbar" : "unvollständig"}</span>
+          <span>{usable ? "verwendbar" : provider.enabled === false ? "inaktiv" : "unvollständig"}</span>
         </span>
-        <div className="d-flex gap-2">
-          <button className="btn btn-outline-danger" type="button" aria-label="Modell löschen" onClick={() => props.onDelete(model.id)}>
-            <Trash2 size={17} />
-          </button>
-          <button className="btn btn-primary" type="submit">
-            Speichern
-          </button>
-        </div>
+        <button className="btn btn-primary" type="submit">
+          Speichern
+        </button>
       </div>
     </form>
   );
 }
 
-function fieldClass(invalid: boolean, showInvalid: boolean, baseClass: string): string {
-  return invalid && showInvalid ? `${baseClass} is-invalid` : baseClass;
+function createProviderFallback(providerId: ProviderId): ProviderConfigEntity {
+  const now = new Date().toISOString();
+  const definition = getProviderDefinition(providerId);
+  return { id: providerId, baseUrl: definition?.defaultBaseUrl ?? "", enabled: true, createdAt: now, updatedAt: now };
 }
 
-function setModelQuality(model: ModelConfigEntity, quality: string): ModelConfigEntity {
-  const defaultParameters = { ...(model.defaultParameters ?? {}) };
-  const trimmedQuality = quality.trim();
-
-  if (trimmedQuality) {
-    defaultParameters.quality = trimmedQuality;
-  } else {
-    delete defaultParameters.quality;
-  }
-
-  return {
-    ...model,
-    defaultParameters: Object.keys(defaultParameters).length ? defaultParameters : undefined
-  };
+function fieldClass(invalid: boolean, showInvalid: boolean, baseClass: string): string {
+  return invalid && showInvalid ? `${baseClass} is-invalid` : baseClass;
 }

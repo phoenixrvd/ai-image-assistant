@@ -10,7 +10,7 @@ type GeneratedImageInput = {
 export const generationRepository = {
   async createPendingImageGeneration(input: {
     chatId: string;
-    modelConfigId: string;
+    modelId: string;
     type: ModelType;
     prompt: string;
     parameters?: Record<string, JsonValue>;
@@ -20,7 +20,7 @@ export const generationRepository = {
     await db.generationRequests.add({
       id: requestId,
       chatId: input.chatId,
-      modelConfigId: input.modelConfigId,
+      modelId: input.modelId,
       type: input.type,
       prompt: input.prompt,
       parameters: input.parameters,
@@ -34,7 +34,7 @@ export const generationRepository = {
   async completeImageGenerationSuccess(input: {
     requestId: string;
     chatId: string;
-    modelConfigId: string;
+    modelId: string;
     prompt: string;
     type: ModelType;
     parameters?: Record<string, JsonValue>;
@@ -51,7 +51,7 @@ export const generationRepository = {
       await db.generationRequests.update(input.requestId, {
         messageId,
         chatId: input.chatId,
-        modelConfigId: input.modelConfigId,
+        modelId: input.modelId,
         type: input.type,
         prompt: input.prompt,
         parameters: input.parameters,
@@ -70,7 +70,7 @@ export const generationRepository = {
           mimeType: image.mimeType,
           sizeBytes: image.blob.size,
           prompt: input.prompt,
-          modelConfigId: input.modelConfigId,
+          modelId: input.modelId,
           parameters: input.parameters,
           createdAt: now,
           updatedAt: now

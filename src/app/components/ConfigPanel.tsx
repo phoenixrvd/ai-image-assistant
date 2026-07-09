@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useState } from "react";
 import { Camera, Image as ImageIcon, Trash2, Upload } from "lucide-react";
-import type { ChatEntity, ImageEntity, ModelConfigEntity } from "../../db/entities";
-import { modelSupportsReferenceImages } from "../../db/repositories/modelConfigRepository";
+import type { ChatEntity, ImageEntity } from "../../db/entities";
+import { getModelLabel, modelRequiresReferenceImages, modelSupportsReferenceImages } from "../../features/generation/models/registry";
+import type { StaticModel } from "../../features/generation/models/types";
 import type { UploadedReference } from "../appHelpers";
 
 const aspectRatios = [
@@ -14,8 +15,8 @@ export function ConfigPanel(props: {
   open: boolean;
   activeChatId?: string;
   activeChat?: ChatEntity;
-  activeModel?: ModelConfigEntity;
-  imageModels: ModelConfigEntity[];
+  activeModel?: StaticModel;
+  imageModels: StaticModel[];
   imageCount: number;
   aspectRatio: string;
   onClose: () => void;
@@ -35,6 +36,7 @@ export function ConfigPanel(props: {
   const [title, setTitle] = useState(props.activeChat?.title ?? "");
   const [imageInstructions, setImageInstructions] = useState(storedImageInstructions);
   const referencesEnabled = modelSupportsReferenceImages(props.activeModel);
+  const referencesRequired = modelRequiresReferenceImages(props.activeModel);
 
   useEffect(() => setTitle(props.activeChat?.title ?? ""), [props.activeChat?.title]);
   useEffect(() => setImageInstructions(storedImageInstructions), [props.activeChat?.id, storedImageInstructions]);
@@ -79,6 +81,7 @@ export function ConfigPanel(props: {
       <PromptOptions
         pinnedImages={props.pinnedImages}
         referencesEnabled={referencesEnabled}
+        referencesRequired={referencesRequired}
         uploadedReferences={props.uploadedReferences}
         onRemovePinnedReference={props.onRemovePinnedReference}
         onUploadReferences={props.onUploadReferences}
@@ -90,7 +93,7 @@ export function ConfigPanel(props: {
             {props.imageModels.length === 0 ? <option value="">Kein aktives Bildmodell</option> : null}
             {props.imageModels.map((model) => (
               <option key={model.id} value={model.id}>
-                {model.displayName}{modelSupportsReferenceImages(model) ? " (Referenzen)" : ""}
+                {getModelLabel(model)}
               </option>
             ))}
           </select>
@@ -136,12 +139,14 @@ function readImageInstructions(chat?: ChatEntity): string {
 function PromptOptions(props: {
   pinnedImages: ImageEntity[];
   referencesEnabled: boolean;
+  referencesRequired: boolean;
   uploadedReferences: UploadedReference[];
   onRemovePinnedReference: (imageId: string) => void;
   onUploadReferences: (files: File[]) => void;
   onRemoveUploadedReference: (id: string) => void;
 }) {
   const canUpload = props.referencesEnabled && props.pinnedImages.length + props.uploadedReferences.length < 3;
+  const referenceCount = props.pinnedImages.length + props.uploadedReferences.length;
   const handleReferenceSelection = (files: FileList | null, input: HTMLInputElement) => {
     const selectedFiles = Array.from(files ?? []);
     if (selectedFiles.length === 0) return;
@@ -208,6 +213,7 @@ function PromptOptions(props: {
         </div>
       </div>
       {!props.referencesEnabled && <small className="reference-warning">Das aktive Modell unterstützt keine Referenzbilder.</small>}
+      {props.referencesEnabled && props.referencesRequired && referenceCount === 0 && <small className="reference-warning">Mindestens ein Referenzbild auswählen.</small>}
     </div>
   );
 }

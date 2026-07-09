@@ -1,4 +1,5 @@
-import type { JsonValue, ModelConfigEntity, ModelType } from "../../../db/entities";
+import type { JsonValue, ModelType, ProviderConfigEntity } from "../../../db/entities";
+import type { StaticModel } from "../models/types";
 import type { ImageGenerationInput, NormalizedGenerationOutput, ProviderAdapter, TextGenerationInput } from "./types";
 import { buildImagePrompt } from "./openAiCompatibleProvider";
 import { responseToSafeError } from "./sanitize";
@@ -17,32 +18,38 @@ export class FalAiProvider implements ProviderAdapter {
   label = "fal.ai";
 
   supportsModelType(type: ModelType): boolean {
-    return type === "image";
+    return type === "image" || type === "image-edit";
   }
 
-  async generateImage(model: ModelConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput> {
-    const references = input.references ?? [];
-    if (references.length === 0 && model.modelName.toLowerCase().includes("/edit")) {
-      throw new Error("fal.ai Edit benötigt ein Referenzbild.");
+  async generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput> {
+    const references = model.supportsReferenceImages ? (input.references ?? []) : [];
+    const mergedParameters = mergeParameters(model.defaultParameters, input.parameters);
+    const body: Record<string, JsonValue> = {
+      ...stripReservedFalInputParameters(mergedParameters),
+      prompt: buildImagePrompt(input),
+      ...(references.length > 0 ? { image_urls: references } : {}),
+      num_images: input.imageCount,
+      sync_mode: readBooleanParameter(mergedParameters.sync_mode, true)
+    };
+
+    if (usesFalAspectRatioParameter(mergedParameters)) {
+      body.aspect_ratio = readFalAspectRatio(mergedParameters, input.aspectRatio);
+    } else {
+      body.image_size = readFalImageSize(mergedParameters, input.aspectRatio);
+      if (hasFalParameter(mergedParameters, "include_max_images")) body.max_images = input.imageCount;
     }
 
-    const mergedParameters = mergeParameters(model.defaultParameters, input.parameters);
-    const response = await fetch(buildFalEndpointUrl(model), {
+    if (hasFalParameter(mergedParameters, "enable_safety_checker")) {
+      body.enable_safety_checker = false;
+    }
+
+    const response = await fetchFalModelApi(buildFalEndpointUrl(model, providerConfig), {
       method: "POST",
       headers: {
-        Authorization: `Key ${model.apiKey ?? ""}`,
+        Authorization: `Key ${providerConfig.apiKey ?? ""}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        ...stripReservedFalInputParameters(mergedParameters),
-        prompt: buildImagePrompt(input),
-        ...(references.length > 0 ? { image_urls: references } : {}),
-        image_size: mapAspectRatioToFalImageSize(input.aspectRatio),
-        num_images: input.imageCount,
-        max_images: input.imageCount,
-        enable_safety_checker: readBooleanParameter(mergedParameters.enable_safety_checker, false),
-        sync_mode: readBooleanParameter(mergedParameters.sync_mode, true)
-      })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
@@ -55,17 +62,23 @@ export class FalAiProvider implements ProviderAdapter {
     return { images, rawMetadata: { seed: payload.seed ?? null } };
   }
 
-  async generateText(_model: ModelConfigEntity, _input: TextGenerationInput): Promise<string> {
+  async generateText(_model: StaticModel, _providerConfig: ProviderConfigEntity, _input: TextGenerationInput): Promise<string> {
     throw new Error("fal.ai unterstützt in dieser App keine Textmodelle.");
   }
 }
 
-function buildFalEndpointUrl(model: ModelConfigEntity): string {
-  const modelName = model.modelName.trim().replace(/^\/+/, "");
+function fetchFalModelApi(url: string, init: RequestInit): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set("X-Fal-Store-IO", "0");
+  return fetch(url, { ...init, headers });
+}
+
+function buildFalEndpointUrl(model: StaticModel, providerConfig: ProviderConfigEntity): string {
+  const modelName = model.providerModelName.trim().replace(/^\/+/, "");
   if (!modelName) return "https://fal.run";
   if (modelName.startsWith("http://") || modelName.startsWith("https://")) return modelName;
 
-  const configuredBaseUrl = model.baseUrl.trim().replace(/\/+$/, "");
+  const configuredBaseUrl = providerConfig.baseUrl.trim().replace(/\/+$/, "");
   const baseUrl = configuredBaseUrl || "https://fal.run";
   return `${baseUrl}/${modelName}`;
 }
@@ -82,7 +95,39 @@ function stripReservedFalInputParameters(parameters: Record<string, JsonValue>):
   return Object.fromEntries(entries);
 }
 
-const reservedFalInputKeys = new Set(["prompt", "image_urls", "image_size", "num_images", "max_images", "enable_safety_checker", "sync_mode"]);
+const reservedFalInputKeys = new Set(["prompt", "image_urls", "image_size", "image_size_by_aspect", "aspect_ratio", "aspect_ratio_by_aspect", "num_images", "max_images", "include_max_images", "enable_safety_checker", "sync_mode"]);
+
+function usesFalAspectRatioParameter(parameters: Record<string, JsonValue>): boolean {
+  return hasFalParameter(parameters, "aspect_ratio_by_aspect");
+}
+
+function hasFalParameter(parameters: Record<string, JsonValue>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(parameters, key);
+}
+
+function readFalAspectRatio(parameters: Record<string, JsonValue>, aspectRatio: string): JsonValue {
+  const byAspect = parameters.aspect_ratio_by_aspect;
+  if (byAspect && typeof byAspect === "object" && !Array.isArray(byAspect)) {
+    const value = byAspect[aspectRatio];
+    if (value) return value;
+  }
+  return mapAspectRatioToFalAspectRatio(aspectRatio);
+}
+
+function mapAspectRatioToFalAspectRatio(aspectRatio: string): string {
+  if (aspectRatio === "portrait") return "9:16";
+  if (aspectRatio === "landscape") return "16:9";
+  return "1:1";
+}
+
+function readFalImageSize(parameters: Record<string, JsonValue>, aspectRatio: string): JsonValue {
+  const byAspect = parameters.image_size_by_aspect;
+  if (byAspect && typeof byAspect === "object" && !Array.isArray(byAspect)) {
+    const value = byAspect[aspectRatio];
+    if (value) return value;
+  }
+  return mapAspectRatioToFalImageSize(aspectRatio);
+}
 
 function mapAspectRatioToFalImageSize(aspectRatio: string): string {
   if (aspectRatio === "portrait") return "portrait_16_9";

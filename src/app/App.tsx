@@ -11,7 +11,8 @@ import { generationRepository } from "../db/repositories/generationRepository";
 import { imageRepository } from "../db/repositories/imageRepository";
 import { messageRepository } from "../db/repositories/messageRepository";
 import { modelLoadEstimateRepository } from "../db/repositories/modelLoadEstimateRepository";
-import { isModelUsable, modelConfigRepository, modelSupportsReferenceImages } from "../db/repositories/modelConfigRepository";
+import { providerConfigRepository } from "../db/repositories/providerConfigRepository";
+import { listUsableModels, modelSupportsReferenceImages } from "../features/generation/models/registry";
 import { generateChatTitle } from "../features/generation/services/chatTitleService";
 import { generateImages } from "../features/generation/services/generationService";
 import { applyTheme, closePanels, createReferenceSnapshots, fileToDataUrl, readChatNavOpenState, refreshChatData, type StoredReference, type UploadedReference } from "./appHelpers";
@@ -72,7 +73,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   const isCreatingDefaultChatRef = useRef(false);
 
   const chatsQuery = useQuery({ queryKey: ["chats"], queryFn: chatRepository.list });
-  const modelsQuery = useQuery({ queryKey: ["models"], queryFn: modelConfigRepository.list });
+  const providerConfigsQuery = useQuery({ queryKey: ["providerConfigs"], queryFn: providerConfigRepository.list });
   const themeQuery = useQuery({ queryKey: ["theme"], queryFn: () => appOptionsRepository.getTheme() });
   const activeImageModelIdQuery = useQuery({ queryKey: ["activeImageModelId"], queryFn: async () => (await appOptionsRepository.get<string>("activeImageModelId")) ?? null });
   const activeChatId = chatId;
@@ -95,10 +96,10 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     enabled: Boolean(activeChatId)
   });
 
-  const usableImageModels = useMemo(() => modelsQuery.data?.filter((model) => isModelUsable(model, "image")) ?? [], [modelsQuery.data]);
+  const usableImageModels = useMemo(() => listUsableModels(["image", "image-edit"], providerConfigsQuery.data ?? []), [providerConfigsQuery.data]);
   const selectedImageModelId = activeImageModelId ?? activeImageModelIdQuery.data;
   const activeModel = useMemo(() => usableImageModels.find((model) => model.id === selectedImageModelId) ?? usableImageModels[0], [selectedImageModelId, usableImageModels]);
-  const activeTextModel = useMemo(() => modelsQuery.data?.find((model) => isModelUsable(model, "chat")), [modelsQuery.data]);
+  const activeTextModel = useMemo(() => listUsableModels(["text"], providerConfigsQuery.data ?? [])[0], [providerConfigsQuery.data]);
   const hasMinimumModelConfig = Boolean(activeModel && activeTextModel);
   const overlayImage = useMemo(() => imagesQuery.data?.find((image) => image.id === overlayImageId), [imagesQuery.data, overlayImageId]);
   const pinnedImages = useMemo(() => (imagesQuery.data ?? []).filter((image) => image.pinned), [imagesQuery.data]);
@@ -113,7 +114,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       const referencesEnabled = modelSupportsReferenceImages(activeModel);
       const referenceSnapshots = referencesEnabled ? await createReferenceSnapshots(activePinnedImages, uploadedReferences) : undefined;
       const references = referenceSnapshots?.map((reference) => reference.dataUrl);
-      const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(activeModel!.provider, activeModel!.modelName);
+      const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(activeModel!.providerId, activeModel!.providerModelName);
       startGenerationProgress(estimatedSeconds);
       return generateImages(activeChatId!, activeModel!.id, { prompt: submittedPrompt, instructions: imageInstructions, imageCount, aspectRatio, references, referenceSnapshots });
     },
@@ -199,10 +200,10 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (!modelsQuery.isSuccess || hasMinimumModelConfig || showOptions) return;
+    if (!providerConfigsQuery.isSuccess || hasMinimumModelConfig || showOptions) return;
     setLeftOpen(false);
     navigate("/options", { replace: true });
-  }, [hasMinimumModelConfig, modelsQuery.isSuccess, navigate, showOptions]);
+  }, [hasMinimumModelConfig, navigate, providerConfigsQuery.isSuccess, showOptions]);
 
   useEffect(() => () => stopGenerationProgress(), []);
 
@@ -301,7 +302,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
       setIsCreatingInitialGeneration(true);
       try {
-        const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(activeModel.provider, activeModel.modelName);
+        const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(activeModel.providerId, activeModel.providerModelName);
         startGenerationProgress(estimatedSeconds);
         await generateImages(chat.id, activeModel.id, { prompt: submittedPrompt, instructions: "", imageCount, aspectRatio });
         finishGenerationProgress();
@@ -339,7 +340,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   }
 
   function applyHistoricalGenerationSettings(request: GenerationRequestEntity) {
-    const model = usableImageModels.find((entry) => entry.id === request.modelConfigId);
+    const model = usableImageModels.find((entry) => entry.id === request.modelId);
     if (model) {
       setActiveImageModelId(model.id);
     }
@@ -623,7 +624,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
   return (
     <div
-      className={overlayImage ? "app-shell image-overlay-open" : "app-shell"}
+      className="app-shell"
       onPointerDown={handleShellPointerDown}
       onPointerMove={handleShellPointerMove}
       onPointerUp={handleShellPointerUp}
@@ -678,7 +679,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
         </header>
         <InstallPromptBanner />
         {showOptions ? (
-          <OptionsView models={modelsQuery.data ?? []} theme={themeQuery.data ?? "system"} />
+          <OptionsView providerConfigs={providerConfigsQuery.data ?? []} theme={themeQuery.data ?? "system"} />
         ) : (
           <WorkspaceView
             sessionId={activeChatId}

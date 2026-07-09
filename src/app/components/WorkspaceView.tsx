@@ -140,17 +140,6 @@ export function WorkspaceView(props: {
           return (
             <article key={message.id} className="prompt-card">
               <p>{message.content}</p>
-              <div className="d-flex flex-wrap align-items-center gap-2 mt-1">
-                <button type="button" className="message-delete" aria-label="Nachricht löschen" onClick={() => props.onDeleteMessage(message.id)}>
-                  <Trash2 size={12} aria-hidden="true" />
-                </button>
-                {request && (
-                  <button type="button" className="prompt-repeat" aria-label="Prompt wiederholen" onClick={() => props.onRepeatPrompt(request)}>
-                    <RotateCcw size={12} aria-hidden="true" />
-                  </button>
-                )}
-                <small className="message-time">{formatMessageDate(message.createdAt)}</small>
-              </div>
               {!!imagesByMessageId.byMessage.get(message.id)?.length && (
                 <div className="image-grid">
                   {(imagesByMessageId.byMessage.get(message.id) ?? []).map((image) => (
@@ -158,6 +147,19 @@ export function WorkspaceView(props: {
                   ))}
                 </div>
               )}
+              <div className="d-flex flex-wrap align-items-center gap-2 mt-1">
+                <small className="message-time">{formatMessageDate(message.createdAt)}</small>
+                <div className="d-inline-flex align-items-center gap-2 ms-auto">
+                  {request && (
+                    <button type="button" className="prompt-repeat" aria-label="Prompt wiederholen" onClick={() => props.onRepeatPrompt(request)}>
+                      <RotateCcw size={12} aria-hidden="true" />
+                    </button>
+                  )}
+                  <button type="button" className="message-delete" aria-label="Nachricht löschen" onClick={() => props.onDeleteMessage(message.id)}>
+                    <Trash2 size={12} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
             </article>
           );
         })}

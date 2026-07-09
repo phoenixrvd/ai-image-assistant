@@ -23,29 +23,30 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - The documented MVP does not require a backend.
 - Image generation can be triggered in the MVP without a server-side application.
 
-### Local provider and model configuration
+### Local provider configuration with static models
 **Type:** Functional  
-**Description:** Users must be able to configure API providers, API URLs, API keys, and model names directly in the GUI.  
+**Description:** Users must be able to configure fixed API providers directly in the GUI. Models are statically implemented in the application and are not user-configurable.  
 **Acceptance Criteria:**
-- The GUI provides inputs for provider or model settings.
-- The GUI provides inputs for API URL, API key, and model name.
-- Model configuration is part of the local app data and is not hardcoded.
+- The GUI provides inputs for provider settings.
+- The GUI provides inputs for API URL, API key, and active/inactive status per fixed provider.
+- The GUI does not provide inputs for model names, model types, default parameters, or model capabilities.
+- Static model definitions in the implementation provide model names, types, provider mapping, default parameters, and reference-image capability.
 
 ### Local configuration persistence
 **Type:** Constraint  
-**Description:** Provider and model configuration must be stored locally in browser storage, for example in IndexedDB via Dexie.  
+**Description:** Provider configuration must be stored locally in browser storage, for example in IndexedDB via Dexie.  
 **Acceptance Criteria:**
-- Stored provider and model data remains available after reloading the application.
-- The configuration can be edited locally and saved again.
+- Stored provider data remains available after reloading the application.
+- Provider URL, API key, and active/inactive status can be edited locally and saved again.
 - The documentation treats IndexedDB and Dexie as local MVP constraints, not as a general backend architecture.
 
-### Derive active models from configuration
+### Derive active models from provider configuration and static definitions
 **Type:** Functional  
-**Description:** A model must be considered active only when its stored configuration contains the required values for generation.  
+**Description:** A model must be considered active only when its fixed provider is active and has the required stored configuration values.  
 **Acceptance Criteria:**
-- Models with a usable provider, API URL, model name, and required credentials are treated as active.
-- Models missing required provider, URL, model name, or credential values are not offered for generation or are shown as inactive.
-- The activity status is derived from the stored configuration and is not hardcoded separately.
+- Models whose provider has a URL, API key, and active status are treated as active.
+- Models whose provider is inactive or missing URL or credential values are not offered for generation.
+- Model names and capabilities are read from static model definitions, not from local storage.
 
 ### Require image and text model configuration
 **Type:** Functional  
@@ -60,40 +61,33 @@ This requirement defines the MVP scope for a frontend-only application with loca
 
 ### Provide an options area for global settings
 **Type:** Functional  
-**Description:** The system must provide an options area for global settings and model configuration.  
+**Description:** The system must provide an options area for global settings and provider configuration.  
 **Acceptance Criteria:**
-- The options area includes provider or model settings.
-- The options area includes an API URL per provider or model.
-- The options area includes an API key per provider or model.
-- The options area includes the model name and derived activity status.
+- The options area includes fixed provider settings.
+- The options area includes an API URL per provider.
+- The options area includes an API key per provider.
+- The options area includes the active/inactive status per provider.
+- The options area shows the active static models per provider as a simple name-sorted list.
 - The options area includes the theme switch for dark and light mode.
 
-### Add models dynamically
+### Fixed providers without dynamic creation
 **Type:** Functional  
-**Description:** In the "Models" area, users must be able to add a new model through a "+" button.  
+**Description:** The MVP uses fixed built-in providers. Users cannot dynamically create providers or models.  
 **Acceptance Criteria:**
-- The "Models" area includes a "+" button.
-- Clicking "+" shows input fields for an additional model.
-- The new fields are directly editable.
-- After saving, the new model is persisted locally.
-
-### Support custom compatible endpoints
-**Type:** Functional  
-**Description:** Users must be able to flexibly enter custom API URLs and model names for supported provider adapters, including OpenAI-compatible local endpoints or external APIs.  
-**Acceptance Criteria:**
-- API URL and model values are not sourced exclusively from fixed built-in lists.
-- Users can enter custom API URLs.
-- Users can enter custom model names.
+- The application ships with fixed providers for xAI/Grok, OpenAI, and fal.ai.
+- The GUI does not offer creation or deletion of providers.
+- The GUI does not offer creation or deletion of models.
+- Users can enter custom API URLs for the fixed providers.
 - Free-form provider adapter plugins are outside the MVP scope.
 
-### Support multiple provider models without adding adapters
+### Support static provider models without local model configuration
 **Type:** Functional  
-**Description:** Built-in provider adapters must support multiple provider model variants via local model configuration, so users can experiment with different provider models without implementing a new adapter for each model.  
+**Description:** Built-in provider adapters must support the statically implemented provider models without requiring local model configuration.  
 **Acceptance Criteria:**
-- A built-in provider adapter can be reused with different configured model identifiers.
-- Users can switch provider model variants by changing locally stored model configuration values.
-- Adding a new provider model variant does not require adding a separate provider adapter implementation when the API contract remains compatible.
-- Local provider and model configuration remains the source of truth for which provider model variant is used.
+- A built-in provider adapter can be reused by multiple static model classes when the API contract is compatible.
+- Users select from active static models in the model dropdown.
+- Adding a new provider model variant requires adding a static model implementation.
+- Local provider configuration remains the source of truth for whether a provider's static models are usable.
 
 ### Execute direct generation requests in the MVP
 **Type:** Constraint  
@@ -117,5 +111,5 @@ This requirement defines the MVP scope for a frontend-only application with loca
 **Description:** Provider integration must be encapsulated so that a backend or proxy can optionally be added later without fundamentally rebuilding the UI or local data structure.  
 **Acceptance Criteria:**
 - UI requirements remain independent of whether requests are executed directly or later through a backend or proxy.
-- Local model configuration remains a functional app configuration.
+- Local provider configuration remains a functional app configuration.
 - A later backend or proxy mode does not require a fundamental redefinition of the UI flow.

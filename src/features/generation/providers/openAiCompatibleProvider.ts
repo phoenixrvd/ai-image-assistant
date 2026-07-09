@@ -1,4 +1,5 @@
-import type { JsonValue, ModelConfigEntity, ModelType } from "../../../db/entities";
+import type { JsonValue, ModelType, ProviderConfigEntity } from "../../../db/entities";
+import type { StaticModel } from "../models/types";
 import type { ImageGenerationInput, NormalizedGenerationOutput, ProviderAdapter, TextGenerationInput } from "./types";
 import { responseToSafeError } from "./sanitize";
 
@@ -18,22 +19,22 @@ interface ProviderChatResponse {
 }
 
 export class OpenAiCompatibleProvider implements ProviderAdapter {
-  id = "openai-compatible";
-  label = "OpenAI kompatibel";
+  id = "openai";
+  label = "OpenAI";
 
   supportsModelType(type: ModelType): boolean {
-    return type === "image" || type === "chat";
+    return type === "image" || type === "image-edit" || type === "text";
   }
 
-  async generateImage(model: ModelConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput> {
+  async generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput> {
     if (input.references?.length) {
-      return this.generateImageEdit(model, input);
+      return this.generateImageEdit(model, providerConfig, input);
     }
 
-    const response = await fetch(`${model.baseUrl.replace(/\/$/, "")}/images/generations`, {
+    const response = await fetch(`${providerConfig.baseUrl.replace(/\/$/, "")}/images/generations`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${model.apiKey ?? ""}`,
+        Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify(this.buildBody(model, input))
@@ -47,9 +48,9 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
     return this.normalize(payload);
   }
 
-  protected async generateImageEdit(model: ModelConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput> {
+  protected async generateImageEdit(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput> {
     const body = new FormData();
-    body.append("model", model.modelName);
+    body.append("model", model.providerModelName);
     body.append("prompt", buildImagePrompt(input));
     body.append("n", String(input.imageCount));
     body.append("size", mapAspectRatioToSize(input.aspectRatio));
@@ -61,10 +62,10 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
       body.append("image", blob, `reference-${index}.${mimeTypeToExtension(blob.type)}`);
     }
 
-    const response = await fetch(`${model.baseUrl.replace(/\/$/, "")}/images/edits`, {
+    const response = await fetch(`${providerConfig.baseUrl.replace(/\/$/, "")}/images/edits`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${model.apiKey ?? ""}`
+        Authorization: `Bearer ${providerConfig.apiKey ?? ""}`
       },
       body
     });
@@ -77,9 +78,9 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
     return this.normalize(payload);
   }
 
-  protected buildBody(model: ModelConfigEntity, input: ImageGenerationInput): Record<string, JsonValue> {
+  protected buildBody(model: StaticModel, input: ImageGenerationInput): Record<string, JsonValue> {
     return {
-      model: model.modelName,
+      model: model.providerModelName,
       prompt: buildImagePrompt(input),
       n: input.imageCount,
       size: mapAspectRatioToSize(input.aspectRatio),
@@ -93,15 +94,15 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
     return { images, rawMetadata: { created: payload.created ?? null } };
   }
 
-  async generateText(model: ModelConfigEntity, input: TextGenerationInput): Promise<string> {
-    const response = await fetch(`${model.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+  async generateText(model: StaticModel, providerConfig: ProviderConfigEntity, input: TextGenerationInput): Promise<string> {
+    const response = await fetch(`${providerConfig.baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${model.apiKey ?? ""}`,
+        Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: model.modelName,
+        model: model.providerModelName,
         messages: [
           { role: "system", content: input.system },
           { role: "user", content: input.prompt }

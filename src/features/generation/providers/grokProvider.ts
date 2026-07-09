@@ -1,4 +1,5 @@
-import type { JsonValue, ModelConfigEntity } from "../../../db/entities";
+import type { JsonValue, ProviderConfigEntity } from "../../../db/entities";
+import type { StaticModel } from "../models/types";
 import { buildImagePrompt, OpenAiCompatibleProvider } from "./openAiCompatibleProvider";
 import { responseToSafeError } from "./sanitize";
 import type { ImageGenerationInput } from "./types";
@@ -7,14 +8,14 @@ export class GrokProvider extends OpenAiCompatibleProvider {
   id = "xai";
   label = "xAI / Grok";
 
-  async generateImage(model: ModelConfigEntity, input: ImageGenerationInput) {
-    if (!input.references?.length) return super.generateImage(model, input);
+  async generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput) {
+    if (!input.references?.length) return super.generateImage(model, providerConfig, input);
 
     const defaultParameters = normalizeXaiParameters(model.defaultParameters ?? {});
     const body = {
       ...stripReservedXaiParameters(defaultParameters),
       ...stripReservedXaiParameters(input.parameters ?? {}),
-      model: model.modelName || "grok-imagine-image",
+      model: model.providerModelName || "grok-imagine-image",
       prompt: buildImagePrompt(input),
       n: input.imageCount,
       aspect_ratio: mapAspectRatioToXai(input.aspectRatio),
@@ -22,10 +23,10 @@ export class GrokProvider extends OpenAiCompatibleProvider {
       response_format: "b64_json"
     };
 
-    const response = await fetch(`${model.baseUrl.replace(/\/$/, "")}/images/edits`, {
+    const response = await fetch(`${providerConfig.baseUrl.replace(/\/$/, "")}/images/edits`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${model.apiKey ?? ""}`,
+        Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
@@ -38,12 +39,12 @@ export class GrokProvider extends OpenAiCompatibleProvider {
     return this.normalize(await response.json());
   }
 
-  protected buildBody(model: ModelConfigEntity, input: ImageGenerationInput): Record<string, JsonValue> {
+  protected buildBody(model: StaticModel, input: ImageGenerationInput): Record<string, JsonValue> {
     const defaultParameters = normalizeXaiParameters(model.defaultParameters ?? {});
     return {
       ...stripReservedXaiParameters(defaultParameters),
       ...stripReservedXaiParameters(input.parameters ?? {}),
-      model: model.modelName || "grok-2-image",
+      model: model.providerModelName || "grok-2-image",
       prompt: buildImagePrompt(input),
       n: input.imageCount,
       aspect_ratio: mapAspectRatioToXai(input.aspectRatio),
