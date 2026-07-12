@@ -58,8 +58,10 @@ body::before {
 .image-action:focus-visible,
 .prompt-repeat:focus-visible,
 .message-delete:focus-visible,
+.error-dismiss:focus-visible,
 .prompt-config:focus-visible,
-.prompt-clear:focus-visible {
+.prompt-clear:focus-visible,
+.prompt-pinned-images:focus-visible {
   outline: 0.15rem solid rgba(var(--bs-primary-rgb), 0.35);
   outline-offset: 0.15rem;
 }

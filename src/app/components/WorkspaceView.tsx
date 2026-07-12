@@ -34,17 +34,22 @@ export function WorkspaceView(props: {
   isGenerating: boolean;
   generationProgressPercent: number;
   error?: string;
+  onDismissError: () => void;
   connectivityNotice?: string;
   messages: MessageView[];
   images: ImageEntity[];
   generationRequests: GenerationRequestEntity[];
   overlayImageId?: string;
+  focusedImageId?: string;
+  pinnedImageCount: number;
+  scrollToEndRequest: number;
   onGenerate: () => void;
   onOpenConfig: () => void;
   onDeleteMessage: (messageId: string) => void;
   onRepeatPrompt: (request: GenerationRequestEntity) => void;
   onTogglePinned: (image: ImageEntity) => void;
   onOverlay: (id: string | undefined) => void;
+  onShowNextPinnedImage: () => void;
 }) {
   const resultStreamRef = useRef<HTMLDivElement>(null);
   const latestMessageAnchorRef = useRef<HTMLSpanElement | null>(null);
@@ -62,6 +67,21 @@ export function WorkspaceView(props: {
   });
 
   useOverlayHeight(bottomOverlayRef, "--workspace-bottom-overlay-height");
+
+  useLayoutEffect(() => {
+    const stream = resultStreamRef.current;
+    const image = props.focusedImageId ? document.getElementById(`image-${props.focusedImageId}`) : undefined;
+    if (!stream || !image) return;
+
+    scrollToImage(stream, image);
+  }, [props.focusedImageId]);
+
+  useLayoutEffect(() => {
+    const stream = resultStreamRef.current;
+    if (props.scrollToEndRequest === 0 || !stream) return;
+
+    scrollToLatestMessage(stream, latestMessageAnchorRef.current, "smooth");
+  }, [props.scrollToEndRequest]);
 
   useLayoutEffect(() => {
     const editor = promptEditorRef.current;
@@ -139,7 +159,6 @@ export function WorkspaceView(props: {
           const request = message.requestId ? requestsById.get(message.requestId) : undefined;
           return (
             <article key={message.id} className="prompt-card">
-              <p>{message.content}</p>
               {!!imagesByMessageId.byMessage.get(message.id)?.length && (
                 <div className="image-grid">
                   {(imagesByMessageId.byMessage.get(message.id) ?? []).map((image) => (
@@ -147,6 +166,17 @@ export function WorkspaceView(props: {
                   ))}
                 </div>
               )}
+              <button
+                type="button"
+                className="message-prompt collapsed"
+                aria-expanded="false"
+                onClick={(event) => {
+                  event.currentTarget.classList.remove("collapsed");
+                  event.currentTarget.setAttribute("aria-expanded", "true");
+                }}
+              >
+                {message.content}
+              </button>
               <div className="d-flex flex-wrap align-items-center gap-2 mt-1">
                 <small className="message-time">{formatMessageDate(message.createdAt)}</small>
                 <div className="d-inline-flex align-items-center gap-2 ms-auto">
@@ -175,7 +205,12 @@ export function WorkspaceView(props: {
         <span ref={latestMessageAnchorRef} className="message-scroll-anchor" aria-hidden="true" />
       </div>
       <div ref={bottomOverlayRef} className="workspace-bottom-overlay">
-        {props.error && <p className="alert alert-danger mb-0">{props.error}</p>}
+        {props.error && (
+          <p className="alert alert-danger error-alert mb-0">
+            <span>{props.error}</span>
+            <button type="button" className="btn-close error-dismiss" aria-label="Fehlermeldung schließen" onClick={props.onDismissError} />
+          </p>
+        )}
         {props.connectivityNotice && <p className="alert alert-warning mb-0">{props.connectivityNotice}</p>}
         <form
           className="prompt-bar"
@@ -204,6 +239,16 @@ export function WorkspaceView(props: {
                 </button>
                 <button className="prompt-clear" type="button" aria-label="Prompt-Eingabe löschen" onClick={clearPromptWithConfirmation}>
                   <Eraser size={18} aria-hidden="true" />
+                </button>
+                <button
+                  className="prompt-pinned-images"
+                  type="button"
+                  disabled={props.pinnedImageCount === 0}
+                  aria-label={`Zum nächsten angepinnten Bild springen (${props.pinnedImageCount} angepinnt)`}
+                  onClick={props.onShowNextPinnedImage}
+                >
+                  <Pin size={18} aria-hidden="true" />
+                  {props.pinnedImageCount > 0 && <sup>{props.pinnedImageCount}</sup>}
                 </button>
               </div>
               <SendProgressButton
@@ -327,13 +372,22 @@ function useWorkspaceScroll(params: {
   return { alignToTargetIfFollowing, handleScroll, isNearBottom: isAtBottom, remember };
 }
 
-function scrollToLatestMessage(scrollElement: HTMLElement, latestMessage: HTMLElement | null) {
+function scrollToLatestMessage(scrollElement: HTMLElement, latestMessage: HTMLElement | null, behavior?: ScrollBehavior) {
   if (!latestMessage) {
+    if (behavior) {
+      scrollElement.scrollTo({ top: scrollElement.scrollHeight, behavior });
+      return;
+    }
     scrollElement.scrollTop = scrollElement.scrollHeight;
     return;
   }
 
-  scrollElement.scrollTop = getLatestMessageScrollTop(scrollElement, latestMessage);
+  const top = getLatestMessageScrollTop(scrollElement, latestMessage);
+  if (behavior) {
+    scrollElement.scrollTo({ top, behavior });
+    return;
+  }
+  scrollElement.scrollTop = top;
 }
 
 function getLatestMessageScrollTop(scrollElement: HTMLElement, latestMessage: HTMLElement) {
@@ -345,14 +399,36 @@ function getScrollPaddingBottom(element: HTMLElement) {
   return Number.parseFloat(getComputedStyle(element).scrollPaddingBottom) || 0;
 }
 
+function scrollToImage(scrollElement: HTMLElement, image: HTMLElement) {
+  const imageTop = image.getBoundingClientRect().top - scrollElement.getBoundingClientRect().top + scrollElement.scrollTop;
+  const scrollPaddingTop = Number.parseFloat(getComputedStyle(scrollElement).scrollPaddingTop) || 0;
+  scrollElement.scrollTo({ top: Math.max(0, imageTop - scrollPaddingTop - scrollTargetGap), behavior: "smooth" });
+}
+
 function ImageCard(props: { image: ImageEntity; overlayActive: boolean; onContentLoaded: () => void; onTogglePinned: (image: ImageEntity) => void; onOverlay: (id: string | undefined) => void }) {
   const [url, setUrl] = useState<string>();
+  const [isNarrowerThanPreview, setIsNarrowerThanPreview] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     const objectUrl = URL.createObjectURL(props.image.blob);
     setUrl(objectUrl);
+    setIsNarrowerThanPreview(false);
     return () => URL.revokeObjectURL(objectUrl);
   }, [props.image.blob]);
+
+  useLayoutEffect(() => {
+    const image = imageRef.current;
+    const preview = image?.parentElement;
+    if (!image || !preview) return;
+
+    const updateWidth = () => setIsNarrowerThanPreview(image.clientWidth < preview.clientWidth);
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(image);
+    observer.observe(preview);
+    updateWidth();
+    return () => observer.disconnect();
+  }, [url]);
 
   function download() {
     if (!url) return;
@@ -362,18 +438,25 @@ function ImageCard(props: { image: ImageEntity; overlayActive: boolean; onConten
     link.click();
   }
 
+  function handleImageLoad() {
+    props.onContentLoaded();
+  }
+
   return (
-    <figure id={`image-${props.image.id}`} className={props.overlayActive ? "image-card overlay embedded" : "image-card embedded"}>
+    <figure id={`image-${props.image.id}`} className={`${props.overlayActive ? "image-card overlay embedded" : "image-card embedded"}${isNarrowerThanPreview ? " narrower-than-preview" : ""}`}>
       <button type="button" className="image-preview-button" aria-label="Bild als Overlay öffnen" onClick={() => props.onOverlay(props.image.id)}>
         {url ? (
-          <img src={url} alt={props.image.prompt ?? "Generiertes Bild"} onLoad={props.onContentLoaded} />
+          <>
+            <span className="image-preview-backdrop" aria-hidden="true" style={{ backgroundImage: `url(${url})` }} />
+            <img ref={imageRef} src={url} alt={props.image.prompt ?? "Generiertes Bild"} onLoad={handleImageLoad} />
+          </>
         ) : (
           <span className="image-placeholder">
             <ImageIcon />
           </span>
         )}
       </button>
-      <div className="d-flex justify-content-start gap-3">
+      <div className="image-actions d-flex justify-content-start gap-3">
         <button type="button" className="image-action" aria-label="Bild herunterladen" onClick={download}>
           <Download size={17} aria-hidden="true" />
         </button>

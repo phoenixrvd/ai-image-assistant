@@ -55,6 +55,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   const [imageCount, setImageCount] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<ChatAspectRatio>("portrait");
   const [overlayImageId, setOverlayImageId] = useState<string>();
+  const [pinnedNavigationImageId, setPinnedNavigationImageId] = useState<string>();
+  const [pinnedNavigationEndRequest, setPinnedNavigationEndRequest] = useState(0);
   const [uploadedReferences, setUploadedReferences] = useState<UploadedReference[]>([]);
   const [referenceMode, setReferenceMode] = useState<"default" | "restored">("default");
   const [activeImageModelId, setActiveImageModelId] = useState<string>();
@@ -428,10 +430,25 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     setOverlayImageId(images[nextIndex].id);
   }
 
+  function showNextPinnedImage() {
+    if (pinnedImages.length === 0) return;
+
+    const currentImageId = overlayImageId ?? pinnedNavigationImageId;
+    const currentIndex = pinnedImages.findIndex((image) => image.id === currentImageId);
+    if (currentIndex === pinnedImages.length - 1) {
+      setPinnedNavigationImageId(undefined);
+      setPinnedNavigationEndRequest((request) => request + 1);
+      return;
+    }
+
+    const nextIndex = (currentIndex + 1) % pinnedImages.length;
+    setPinnedNavigationImageId(pinnedImages[nextIndex].id);
+  }
+
   function handleShellPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     if (!event.isPrimary || overlayImageId || !window.matchMedia("(max-width: 859.98px)").matches) return;
-    if (isTextInputSwipeTarget(event.target)) return;
+    if (isInteractiveSwipeTarget(event.target)) return;
     if (!leftOpen && event.clientX > navSwipeEdgeWidth) return;
 
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -440,7 +457,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
   function handleShellTouchStart(event: TouchEvent<HTMLDivElement>) {
     if (event.touches.length !== 1 || overlayImageId || !window.matchMedia("(max-width: 859.98px)").matches) return;
-    if (isTextInputSwipeTarget(event.target)) return;
+    if (isInteractiveSwipeTarget(event.target)) return;
 
     const touch = event.touches[0];
     if (!leftOpen && touch.clientX > navSwipeEdgeWidth) return;
@@ -690,11 +707,18 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
             isGenerating={isGenerating}
             generationProgressPercent={generationProgressPercent}
             error={generateMutation.error?.message ?? initialGenerationError}
+            onDismissError={() => {
+              setInitialGenerationError(undefined);
+              generateMutation.reset();
+            }}
             connectivityNotice={isOnline ? undefined : "Bildgenerierung benötigt eine Verbindung zum Anbieter."}
             messages={messagesQuery.data ?? []}
             images={imagesQuery.data ?? []}
             generationRequests={generationRequestsQuery.data ?? []}
             overlayImageId={overlayImageId}
+            focusedImageId={overlayImageId ?? pinnedNavigationImageId}
+            pinnedImageCount={pinnedImages.length}
+            scrollToEndRequest={pinnedNavigationEndRequest}
             onGenerate={submitPrompt}
             onOpenConfig={openConfigPanel}
             onDeleteMessage={deleteMessage}
@@ -709,6 +733,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
               await refreshChatData(queryClient, activeChatId);
             }}
             onOverlay={setOverlayImageId}
+            onShowNextPinnedImage={showNextPinnedImage}
           />
         )}
       </main>
@@ -792,9 +817,9 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   );
 }
 
-function isTextInputSwipeTarget(target: EventTarget) {
-  if (!(target instanceof HTMLElement)) return false;
-  return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+function isInteractiveSwipeTarget(target: EventTarget) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest('a, button, input, textarea, select, [contenteditable="true"]'));
 }
 
 function readImageInstructions(chat?: ChatEntity): string {

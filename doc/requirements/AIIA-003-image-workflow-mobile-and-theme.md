@@ -53,6 +53,10 @@ This requirement defines image presentation, per-image actions, prompt variation
 **Acceptance Criteria:**
 - Each generated image includes a pin action.
 - The documented pin action marks or highlights the selected image for later use.
+- The prompt controls show a pin navigation control with the number of pinned images in the current chat.
+- The pin navigation control is disabled and does not show a count when no images are pinned.
+- Activating the pin navigation control moves cyclically through the pinned image previews.
+- After the last pinned image, the next activation scrolls to the end of the chat; the following activation resumes at the first pinned image.
 
 ### Provide overlay for each image
 **Type:** Functional  
@@ -64,6 +68,8 @@ This requirement defines image presentation, per-image actions, prompt variation
 - The overlay provides left and right navigation arrows without changing the embedded chat image layout.
 - The overlay navigation arrows are visually reduced, borderless, and appear over the image preview area.
 - Switching the overlay image also switches the blurred background to the active image.
+- Switching the active overlay image synchronizes the chat in the background with the corresponding image preview.
+- After closing the overlay, the related image actions and message actions, including pinning, repeating, and deleting, are directly reachable without searching the chat history again.
 - The overlay supports sliding or swiping between images on touch-capable screens.
 - The overlay allows pinch-to-zoom only on the displayed image on touch-capable screens; the rest of the application must not become zoomable for this feature.
 

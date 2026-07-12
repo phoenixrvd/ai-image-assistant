@@ -36,7 +36,6 @@ export class FalAiProvider implements ProviderAdapter {
       body.aspect_ratio = readFalAspectRatio(mergedParameters, input.aspectRatio);
     } else {
       body.image_size = readFalImageSize(mergedParameters, input.aspectRatio);
-      if (hasFalParameter(mergedParameters, "include_max_images")) body.max_images = input.imageCount;
     }
 
     if (hasFalParameter(mergedParameters, "enable_safety_checker")) {
@@ -95,7 +94,7 @@ function stripReservedFalInputParameters(parameters: Record<string, JsonValue>):
   return Object.fromEntries(entries);
 }
 
-const reservedFalInputKeys = new Set(["prompt", "image_urls", "image_size", "image_size_by_aspect", "aspect_ratio", "aspect_ratio_by_aspect", "num_images", "max_images", "include_max_images", "enable_safety_checker", "sync_mode"]);
+const reservedFalInputKeys = new Set(["prompt", "image_urls", "image_size", "image_size_by_aspect", "aspect_ratio", "aspect_ratio_by_aspect", "num_images", "max_images", "enable_safety_checker", "sync_mode"]);
 
 function usesFalAspectRatioParameter(parameters: Record<string, JsonValue>): boolean {
   return hasFalParameter(parameters, "aspect_ratio_by_aspect");

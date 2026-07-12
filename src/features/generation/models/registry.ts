@@ -56,7 +56,6 @@ class FalSeedreamV5LiteEdit implements StaticModel {
   requiresReferenceImages = true;
   defaultParameters = {
     enable_safety_checker: false,
-    include_max_images: true,
     sync_mode: true,
     image_size_by_aspect: {
       square: { width: 1920, height: 1920 },
@@ -162,9 +161,9 @@ class FalGrokImagineEdit implements StaticModel {
     sync_mode: true,
     output_format: "jpeg",
     aspect_ratio_by_aspect: {
-      square: "auto",
-      portrait: "auto",
-      landscape: "auto"
+      square: "1:1",
+      portrait: "9:16",
+      landscape: "16:9"
     }
   };
 }
