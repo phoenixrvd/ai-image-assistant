@@ -1,6 +1,8 @@
 import type { ProviderConfigEntity, ModelType } from "../../../db/entities";
 import type { ProviderDefinition, ProviderId, StaticModel } from "./types";
 
+export const defaultImageModelId = "fal-grok-imagine-edit";
+
 export const providerDefinitions: ProviderDefinition[] = [
   { id: "xai", label: "xAI / Grok", defaultBaseUrl: "https://api.x.ai/v1" },
   { id: "openai", label: "OpenAI", defaultBaseUrl: "https://api.openai.com/v1" },
@@ -236,6 +238,11 @@ export function getModel(id: string): StaticModel | undefined {
 
 export function listUsableModels(types: ModelType[], providerConfigs: ProviderConfigEntity[]): StaticModel[] {
   return listModels().filter((model) => types.includes(model.type) && isModelUsable(model, providerConfigs));
+}
+
+export function selectDefaultImageModel(models: StaticModel[], selectedModelId?: string | null): StaticModel | undefined {
+  if (selectedModelId) return models.find((model) => model.id === selectedModelId) ?? models[0];
+  return models.find((model) => model.id === defaultImageModelId) ?? models[0];
 }
 
 export function isModelUsable(model: StaticModel, providerConfigs: ProviderConfigEntity[]): boolean {

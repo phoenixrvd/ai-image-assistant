@@ -67,6 +67,7 @@ export function WorkspaceView(props: {
   });
 
   useOverlayHeight(bottomOverlayRef, "--workspace-bottom-overlay-height");
+  useScrollbarWidth(resultStreamRef, bottomOverlayRef, contentCount);
 
   useLayoutEffect(() => {
     const stream = resultStreamRef.current;
@@ -292,6 +293,24 @@ function useOverlayHeight(ref: RefObject<HTMLElement | null>, cssVariable: strin
     observer.observe(element);
     return () => observer.disconnect();
   }, [cssVariable, ref]);
+}
+
+function useScrollbarWidth(scrollRef: RefObject<HTMLElement | null>, overlayRef: RefObject<HTMLElement | null>, contentCount: number) {
+  useLayoutEffect(() => {
+    const stream = scrollRef.current;
+    const overlay = overlayRef.current;
+    if (!stream || !overlay) return;
+
+    const updateWidth = () => {
+      overlay.style.setProperty("--workspace-scrollbar-width", `${stream.offsetWidth - stream.clientWidth}px`);
+    };
+
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(stream);
+    for (const child of stream.children) observer.observe(child);
+    return () => observer.disconnect();
+  }, [contentCount, overlayRef, scrollRef]);
 }
 
 function useWorkspaceScroll(params: {

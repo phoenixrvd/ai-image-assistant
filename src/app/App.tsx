@@ -12,7 +12,7 @@ import { imageRepository } from "../db/repositories/imageRepository";
 import { messageRepository } from "../db/repositories/messageRepository";
 import { modelLoadEstimateRepository } from "../db/repositories/modelLoadEstimateRepository";
 import { providerConfigRepository } from "../db/repositories/providerConfigRepository";
-import { listUsableModels, modelSupportsReferenceImages } from "../features/generation/models/registry";
+import { listUsableModels, modelSupportsReferenceImages, selectDefaultImageModel } from "../features/generation/models/registry";
 import { generateChatTitle } from "../features/generation/services/chatTitleService";
 import { generateImages } from "../features/generation/services/generationService";
 import { applyTheme, closePanels, createReferenceSnapshots, fileToDataUrl, readChatNavOpenState, refreshChatData, type StoredReference, type UploadedReference } from "./appHelpers";
@@ -77,7 +77,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   const chatsQuery = useQuery({ queryKey: ["chats"], queryFn: chatRepository.list });
   const providerConfigsQuery = useQuery({ queryKey: ["providerConfigs"], queryFn: providerConfigRepository.list });
   const themeQuery = useQuery({ queryKey: ["theme"], queryFn: () => appOptionsRepository.getTheme() });
-  const activeImageModelIdQuery = useQuery({ queryKey: ["activeImageModelId"], queryFn: async () => (await appOptionsRepository.get<string>("activeImageModelId")) ?? null });
+  const defaultImageModelIdQuery = useQuery({ queryKey: ["defaultImageModelId"], queryFn: () => appOptionsRepository.getDefaultImageModelId() });
   const activeChatId = chatId;
   const showOptions = props.mode === "options";
   const rightOpen = Boolean(props.configOpen);
@@ -99,7 +99,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   });
 
   const usableImageModels = useMemo(() => listUsableModels(["image", "image-edit"], providerConfigsQuery.data ?? []), [providerConfigsQuery.data]);
-  const selectedImageModelId = activeImageModelId ?? activeImageModelIdQuery.data;
+  const defaultImageModel = useMemo(() => selectDefaultImageModel(usableImageModels, defaultImageModelIdQuery.data), [defaultImageModelIdQuery.data, usableImageModels]);
+  const selectedImageModelId = activeImageModelId ?? defaultImageModel?.id;
   const activeModel = useMemo(() => usableImageModels.find((model) => model.id === selectedImageModelId) ?? usableImageModels[0], [selectedImageModelId, usableImageModels]);
   const activeTextModel = useMemo(() => listUsableModels(["text"], providerConfigsQuery.data ?? [])[0], [providerConfigsQuery.data]);
   const hasMinimumModelConfig = Boolean(activeModel && activeTextModel);
@@ -132,7 +133,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   });
 
   const createChatMutation = useMutation({
-    mutationFn: () => chatRepository.create(),
+    mutationFn: () => chatRepository.create("Neue Sitzung", defaultImageModel?.id),
     onMutate: () => {
       clearReferenceSelection();
       setInitialGenerationError(undefined);
@@ -175,13 +176,13 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
     if (isCreatingDefaultChatRef.current) return;
     isCreatingDefaultChatRef.current = true;
-    void chatRepository.create().then((chat) => {
+    void chatRepository.create("Neue Sitzung", defaultImageModel?.id).then((chat) => {
       navigate(`/chats/${chat.id}`, { replace: true });
       void queryClient.invalidateQueries({ queryKey: ["chats"] });
     }).finally(() => {
       isCreatingDefaultChatRef.current = false;
     });
-  }, [activeChatId, chatsQuery.data, chatsQuery.isFetched, navigate, queryClient, showOptions]);
+  }, [activeChatId, chatsQuery.data, chatsQuery.isFetched, defaultImageModel?.id, navigate, queryClient, showOptions]);
 
   useEffect(() => {
     if (showOptions) setLeftOpen(false);
@@ -243,7 +244,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       setAspectRatio("portrait");
       setUploadedReferences([]);
       setReferenceMode("default");
-      setActiveImageModelId(activeImageModelIdQuery.data ?? undefined);
+      setActiveImageModelId(defaultImageModel?.id);
       return;
     }
 
@@ -265,14 +266,14 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
         }))
       );
       setReferenceMode("default");
-      setActiveImageModelId(settings.activeImageModelId ?? activeImageModelIdQuery.data ?? undefined);
+      setActiveImageModelId(settings.activeImageModelId ?? (defaultImageModelIdQuery.data ? defaultImageModel?.id : usableImageModels[0]?.id));
       setSettingsReadyChatId(activeChatId);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [activeChatId, activeImageModelIdQuery.data, showOptions]);
+  }, [activeChatId, defaultImageModel?.id, defaultImageModelIdQuery.data, showOptions, usableImageModels]);
 
   useEffect(() => {
     if (!activeChatId || settingsReadyChatId !== activeChatId) return;
@@ -299,7 +300,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
     if (!activeChatId) {
       clearReferenceSelection();
-      const chat = await chatRepository.create();
+      const chat = await chatRepository.create("Neue Sitzung", defaultImageModel?.id);
       navigate(`/chats/${chat.id}`);
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
       setIsCreatingInitialGeneration(true);
@@ -696,7 +697,17 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
         </header>
         <InstallPromptBanner />
         {showOptions ? (
-          <OptionsView providerConfigs={providerConfigsQuery.data ?? []} theme={themeQuery.data ?? "system"} />
+          <OptionsView
+            providerConfigs={providerConfigsQuery.data ?? []}
+            theme={themeQuery.data ?? "system"}
+            defaultImageModelId={defaultImageModel?.id}
+            onDefaultImageModel={async (modelId) => {
+              if (defaultImageModel?.id) await chatRepository.initializeMissingImageModels(defaultImageModel.id);
+              queryClient.setQueryData(["defaultImageModelId"], modelId);
+              await appOptionsRepository.set("defaultImageModelId", modelId);
+              await queryClient.invalidateQueries({ queryKey: ["defaultImageModelId"] });
+            }}
+          />
         ) : (
           <WorkspaceView
             sessionId={activeChatId}
@@ -749,9 +760,9 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
         onActiveModel={async (modelId) => {
           setActiveImageModelId(modelId);
           if (!activeChatId) {
-            queryClient.setQueryData(["activeImageModelId"], modelId);
-            await appOptionsRepository.set("activeImageModelId", modelId);
-            await queryClient.invalidateQueries({ queryKey: ["activeImageModelId"] });
+            queryClient.setQueryData(["defaultImageModelId"], modelId);
+            await appOptionsRepository.set("defaultImageModelId", modelId);
+            await queryClient.invalidateQueries({ queryKey: ["defaultImageModelId"] });
             return;
           }
           await chatRepository.updateSettings(activeChatId, { activeImageModelId: modelId });

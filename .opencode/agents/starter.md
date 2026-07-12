@@ -17,7 +17,7 @@ Prepare a local work branch for the next version.
 
 - Never push.
 - Never use destructive Git commands (`reset --hard`, `checkout --`, force push).
-- Do not change files; only Git analysis, branch switching, pull, and branch creation.
+- Do not change files except `package.json` and `package-lock.json` during the version initialization below.
 - Stop and report when there are uncommitted changes.
 - Infer the target branch from the user input or project convention.
 - If no version is provided, use the next minor version after the highest existing `v<major>.<minor>` local or remote branch. Example: if `v1.0` exists, create `v1.1`.
@@ -32,11 +32,17 @@ Prepare a local work branch for the next version.
 4. If the target branch exists: stop.
 5. Determine the main branch, check it out, and run `git pull --ff-only`.
 6. Run `git checkout -b <target-branch>`.
-7. Report the final status.
+7. Derive the package version from the target branch: `v<major>.<minor>` becomes `<major>.<minor>.0`. Stop if the target branch does not match that format.
+8. Run `npm version <package-version> --no-git-tag-version` to update `package.json` and `package-lock.json` without creating a tag or npm-managed commit.
+9. Inspect the working tree. Stop if files other than `package.json` and `package-lock.json` changed.
+10. Stage only `package.json` and `package-lock.json`, then create the local commit `chore: start <target-branch>`.
+11. Report the final status.
 
 ## Output
 
 - Created branch
 - Base (`main` commit hash)
+- Package version
+- Version commit subject and hash
 - Final Git status
 - On stop: reason and next step

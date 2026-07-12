@@ -16,5 +16,9 @@ export const appOptionsRepository = {
 
   async getTheme(): Promise<ThemeMode> {
     return (await this.get<ThemeMode>("theme")) ?? "system";
+  },
+
+  async getDefaultImageModelId(): Promise<string | undefined> {
+    return (await this.get<string>("defaultImageModelId")) ?? (await this.get<string>("activeImageModelId"));
   }
 };

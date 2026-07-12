@@ -32,9 +32,10 @@ export const chatRepository = {
     return db.chats.get(id);
   },
 
-  async create(title = "Neue Sitzung"): Promise<ChatEntity> {
+  async create(title = "Neue Sitzung", activeImageModelId?: string): Promise<ChatEntity> {
     const now = nowIso();
-    const chat = { id: createId("chat"), title, createdAt: now, updatedAt: now };
+    const metadata = activeImageModelId ? { chatSettings: { activeImageModelId } } : undefined;
+    const chat = { id: createId("chat"), title, metadata, createdAt: now, updatedAt: now };
     await db.chats.add(chat);
     return chat;
   },
@@ -45,6 +46,15 @@ export const chatRepository = {
 
   async updateImageInstructions(id: string, imageInstructions: string): Promise<void> {
     await this.updateSettings(id, { imageInstructions });
+  },
+
+  async initializeMissingImageModels(activeImageModelId: string): Promise<void> {
+    const chats = await db.chats.toArray();
+    await Promise.all(
+      chats
+        .filter((chat) => !parseChatSettings(chat).activeImageModelId)
+        .map((chat) => this.updateSettings(chat.id, { activeImageModelId }))
+    );
   },
 
   async readSettings(id: string): Promise<ChatSettings> {

@@ -5,11 +5,11 @@ import type { ProviderConfigEntity, ThemeMode } from "../../db/entities";
 import { appOptionsRepository } from "../../db/repositories/appOptionsRepository";
 import { modelLoadEstimateRepository } from "../../db/repositories/modelLoadEstimateRepository";
 import { isProviderUsable, providerConfigRepository } from "../../db/repositories/providerConfigRepository";
-import { getProviderDefinition, listModels, listModelsByProvider, providerDefinitions } from "../../features/generation/models/registry";
+import { getModelLabel, getProviderDefinition, listModels, listModelsByProvider, listUsableModels, providerDefinitions } from "../../features/generation/models/registry";
 import type { ProviderId, StaticModel } from "../../features/generation/models/types";
 import { appMetadata } from "../metadata";
 
-export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; theme: ThemeMode }) {
+export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; theme: ThemeMode; defaultImageModelId?: string; onDefaultImageModel: (modelId: string) => void }) {
   const queryClient = useQueryClient();
   const saveProviderMutation = useMutation({
     mutationFn: (provider: ProviderConfigEntity) => providerConfigRepository.save(provider),
@@ -20,6 +20,8 @@ export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; th
     await appOptionsRepository.set("theme", theme);
     await queryClient.invalidateQueries({ queryKey: ["theme"] });
   }
+
+  const usableImageModels = listUsableModels(["image", "image-edit"], props.providerConfigs);
 
   const modelEstimateQuery = useQuery({
     queryKey: ["modelLoadEstimates"],
@@ -53,6 +55,17 @@ export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; th
           Allgemein
         </h2>
         <div className="general-options">
+          <div className="form-floating">
+            <select className="form-select" id="default-image-model" value={props.defaultImageModelId ?? ""} disabled={usableImageModels.length === 0} onChange={(event) => props.onDefaultImageModel(event.target.value)}>
+              {usableImageModels.length === 0 ? <option value="">Kein verwendbares Bildmodell</option> : null}
+              {usableImageModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {getModelLabel(model)}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="default-image-model">Standard-Bildmodell</label>
+          </div>
           <div className="btn-group w-100" role="group" aria-label="Theme">
             {[
               { id: "light", label: "Light", icon: <Sun size={17} /> },

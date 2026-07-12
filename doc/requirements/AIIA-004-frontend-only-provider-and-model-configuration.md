@@ -70,6 +70,14 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - The options area shows the active static models per provider as a simple name-sorted list.
 - The options area includes the theme switch for dark and light mode.
 
+### Set a default image model
+**Type:** Functional  
+**Description:** Users can set a global default image model in the options area.  
+**Acceptance Criteria:**
+- The default is `fal.ai: Grok Imagine Edit`.
+- New chats preselect the default model.
+- If the default model is not usable, the first usable image model is selected.
+
 ### Fixed providers without dynamic creation
 **Type:** Functional  
 **Description:** The MVP uses fixed built-in providers. Users cannot dynamically create providers or models.  

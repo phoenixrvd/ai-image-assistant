@@ -39,8 +39,6 @@
   gap: 1rem;
   align-self: center;
   width: min(100%, 900px);
-  margin: 3rem auto;
-  padding: clamp(0.25rem, 2vw, 1rem);
 }
 
 .welcome-card p {
@@ -126,6 +124,16 @@
   width: min(calc(100% - var(--bs-gutter-x, 1.5rem)), 900px);
   max-width: calc(100% - var(--bs-gutter-x, 1.5rem));
   transform: translateX(-50%);
+}
+
+@media (hover: hover) {
+  .workspace-bottom-overlay {
+    --workspace-scrollbar-width: 0px;
+
+    left: calc(50% - (var(--workspace-scrollbar-width) * 0.5));
+    width: min(calc(100% - var(--bs-gutter-x, 1.5rem) - var(--workspace-scrollbar-width)), 900px);
+    max-width: calc(100% - var(--bs-gutter-x, 1.5rem) - var(--workspace-scrollbar-width));
+  }
 }
 
 .workspace-bottom-overlay > .alert {
@@ -383,6 +391,10 @@
 }
 
 @media (min-width: 860px) {
+  .welcome-card {
+    margin-top: 6vw;
+  }
+
   .result-stream {
     --workspace-top-overlay-height: 0.75rem;
   }

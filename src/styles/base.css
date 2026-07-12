@@ -54,6 +54,16 @@ body::before {
     var(--bs-body-bg);
 }
 
+body::after {
+  position: fixed;
+  inset: -2rem 0 auto;
+  z-index: 1021;
+  height: 2rem;
+  pointer-events: none;
+  content: "";
+  box-shadow: 0 0 calc(var(--glass-blur-soft) + 1rem) 0.2rem rgba(var(--bs-body-bg-rgb), 1);
+}
+
 .image-preview-button:focus-visible,
 .image-action:focus-visible,
 .prompt-repeat:focus-visible,
