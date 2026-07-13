@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { Camera, Image as ImageIcon, Trash2, Upload } from "lucide-react";
+import { Camera, Image as ImageIcon, Upload } from "lucide-react";
 import type { ChatEntity, ImageEntity } from "../../db/entities";
 import { getModelLabel, modelRequiresReferenceImages, modelSupportsReferenceImages } from "../../features/generation/models/registry";
 import type { StaticModel } from "../../features/generation/models/types";
@@ -30,7 +30,6 @@ export function ConfigPanel(props: {
   onRemoveUploadedReference: (id: string) => void;
   onRenameChat: (title: string) => void;
   onSaveImageInstructions: (instructions: string) => void;
-  onDeleteChat: () => void;
 }) {
   const storedImageInstructions = readImageInstructions(props.activeChat);
   const [title, setTitle] = useState(props.activeChat?.title ?? "");
@@ -124,9 +123,6 @@ export function ConfigPanel(props: {
           ))}
         </div>
       </div>
-      <button className="btn btn-outline-danger d-inline-flex align-items-center justify-content-center gap-2" disabled={!props.activeChatId} onClick={props.onDeleteChat}>
-        <Trash2 size={17} /> Löschen
-      </button>
     </aside>
   );
 }

@@ -232,18 +232,19 @@ This requirement defines the functional UI zones and the session-oriented flow a
 - The selection is documented with labels and compact format hints.
 - Icons may be used optionally but are not required.
 
-### Keep deletion in the configuration zone
+### Allow session deletion from navigation
 **Type:** Functional  
-**Description:** The system must place deletion of the current session in the configuration zone.  
+**Description:** The system must allow deletion directly from the respective session entry in navigation.  
 **Acceptance Criteria:**
-- The delete action for the current session is documented in the configuration zone.
-- The delete action is documented outside the navigation and prompt input areas.
+- Each session entry in navigation includes a compact delete icon.
+- A navigation delete action deletes the respective session, not necessarily the currently open session.
+- Session deletion removes the session with its messages, images, and associated generation data.
 
 ### Confirm session deletion before execution
 **Type:** Functional  
 **Description:** The system must require confirmation before deleting a session.  
 **Acceptance Criteria:**
-- A delete confirmation is documented before session deletion completes.
+- A delete confirmation is documented before session deletion completes, regardless of where deletion starts.
 - The documented confirmation allows the user to cancel deletion.
 
 ### Use a compact control to hide the session area

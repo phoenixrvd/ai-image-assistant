@@ -1,4 +1,4 @@
-import { ArrowLeft, Menu, Plus, Settings } from "lucide-react";
+import { ArrowLeft, Menu, Plus, Settings, Trash2 } from "lucide-react";
 import type { ChatEntity } from "../../db/entities";
 import { formatMessageDate } from "../appHelpers";
 
@@ -9,6 +9,7 @@ export function ChatNavigation(props: {
   showCloseControl?: boolean;
   onToggle: () => void;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
   onCreate: () => void;
   onOptions: () => void;
 }) {
@@ -28,10 +29,15 @@ export function ChatNavigation(props: {
       </div>
       <div className="chat-list">
         {props.chats.map((chat) => (
-          <button key={chat.id} className={chat.id === props.activeChatId ? "chat-item active" : "chat-item"} onClick={() => props.onSelect(chat.id)}>
-            <span>{chat.title}</span>
-            <small className="message-time">{formatMessageDate(chat.lastMessageAt ?? chat.updatedAt)}</small>
-          </button>
+          <div key={chat.id} className={chat.id === props.activeChatId ? "chat-item active" : "chat-item"}>
+            <button className="chat-select" onClick={() => props.onSelect(chat.id)}>
+              <span>{chat.title}</span>
+              <small className="message-time">{formatMessageDate(chat.lastMessageAt ?? chat.updatedAt)}</small>
+            </button>
+            <button type="button" className="chat-delete" aria-label={`Chat ${chat.title} löschen`} onClick={() => props.onDelete(chat.id)}>
+              <Trash2 size={16} />
+            </button>
+          </div>
         ))}
       </div>
       <div className="nav-actions d-grid gap-2 mt-auto">

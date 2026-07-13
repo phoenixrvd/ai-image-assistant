@@ -342,6 +342,15 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     await refreshChatData(queryClient, activeChatId);
   }
 
+  async function deleteChat(chatId: string) {
+    if (!window.confirm("Diesen Chat mit Nachrichten und Bildern löschen?")) return;
+
+    await chatRepository.deleteWithChildren(chatId);
+    await refreshChatData(queryClient, chatId);
+    await queryClient.invalidateQueries({ queryKey: ["chats"] });
+    if (chatId === activeChatId) navigate("/", { replace: true });
+  }
+
   function applyHistoricalGenerationSettings(request: GenerationRequestEntity) {
     const model = usableImageModels.find((entry) => entry.id === request.modelId);
     if (model) {
@@ -664,6 +673,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
           navigate(`/chats/${id}`);
           setLeftOpen(false);
         }}
+        onDelete={deleteChat}
         onCreate={() => createChatMutation.mutate()}
         onOptions={() => {
           navigate("/options");
@@ -813,15 +823,6 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
           if (!activeChatId) return;
           await chatRepository.updateImageInstructions(activeChatId, instructions);
           updateCachedImageInstructions(queryClient, activeChatId, instructions);
-        }}
-        onDeleteChat={async () => {
-          if (!activeChatId) return;
-          const confirmed = window.confirm("Diesen Chat mit Nachrichten und Bildern löschen?");
-          if (!confirmed) return;
-          await chatRepository.deleteWithChildren(activeChatId);
-          await refreshChatData(queryClient, activeChatId);
-          await queryClient.invalidateQueries({ queryKey: ["chats"] });
-          navigate("/", { replace: true });
         }}
       />
     </div>
