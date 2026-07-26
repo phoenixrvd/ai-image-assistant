@@ -3,7 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type TouchEvent } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import type { ChatEntity, GenerationRequestEntity, JsonValue, ThemeMode } from "../db/entities";
+import type { ChatEntity, GenerationRequestEntity, ImageEntity, JsonValue, MessageEntity, ThemeMode } from "../db/entities";
 import { createClientId } from "../db/id";
 import { appOptionsRepository } from "../db/repositories/appOptionsRepository";
 import { chatRepository, getLastChangedAt, type ChatAspectRatio, type ChatUploadedReference } from "../db/repositories/chatRepository";
@@ -144,6 +144,21 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       setLeftOpen(false);
       setPrompt("");
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
+    }
+  });
+
+  const createChatFromImageMutation = useMutation({
+    mutationFn: async ({ image, request, message }: { image: ImageEntity; request: GenerationRequestEntity; message: MessageEntity }) =>
+      chatRepository.createFromImage(getHistoricalChatSettings(request), { role: message.role, content: message.content, metadata: message.metadata }, image),
+    onSuccess: async (chat) => {
+      setInitialGenerationError(undefined);
+      generateMutation.reset();
+      navigate(`/chats/${chat.id}`);
+      setLeftOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["chats"] });
+    },
+    onError: (error) => {
+      setInitialGenerationError(`Neuer Chat konnte nicht erstellt werden: ${errorToMessage(error, "Unbekannter Fehler.")}`);
     }
   });
 
@@ -329,6 +344,16 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
     setPrompt(repeatedPrompt);
     applyHistoricalGenerationSettings(request);
+  }
+
+  function createChatFromImage(image: ImageEntity) {
+    const request = generationRequestsQuery.data?.find((entry) => entry.id === image.requestId);
+    const message = messagesQuery.data?.find((entry) => entry.id === image.messageId);
+    if (!request || !message) {
+      setInitialGenerationError("Die historischen Einstellungen für dieses Bild sind nicht verfügbar.");
+      return;
+    }
+    createChatFromImageMutation.mutate({ image, request, message });
   }
 
   async function deleteMessage(messageId: string) {
@@ -744,6 +769,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
             onOpenConfig={openConfigPanel}
             onDeleteMessage={deleteMessage}
             onRepeatPrompt={repeatHistoricalPrompt}
+            isCreatingChatFromImage={createChatFromImageMutation.isPending}
+            onCreateChatFromImage={createChatFromImage}
             onTogglePinned={async (image) => {
               setReferenceMode("default");
               if (!image.pinned && pinnedImages.length >= 3) {
@@ -850,6 +877,17 @@ function toChatUploadedReferences(references: UploadedReference[]): ChatUploaded
   return references.slice(0, 3).map((reference) => ({ name: reference.name, dataUrl: reference.dataUrl }));
 }
 
+function getHistoricalChatSettings(request: GenerationRequestEntity) {
+  const parameters = request.parameters ?? {};
+  return {
+    promptDraft: request.prompt,
+    activeImageModelId: request.modelId,
+    imageCount: isValidImageCount(parameters.imageCount) ? parameters.imageCount : undefined,
+    aspectRatio: isValidAspectRatio(parameters.aspectRatio) ? parameters.aspectRatio : undefined,
+    imageInstructions: typeof parameters.imageInstructions === "string" ? parameters.imageInstructions : undefined
+  };
+}
+
 function updateCachedImageInstructions(queryClient: QueryClient, chatId: string, imageInstructions: string) {
   updateCachedChat(queryClient, chatId, (chat) => {
     const nextMetadata = { ...(chat.metadata ?? {}) };
@@ -862,8 +900,8 @@ function updateCachedImageInstructions(queryClient: QueryClient, chatId: string,
   });
 }
 
-function errorToMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Die Generierung ist fehlgeschlagen.";
+function errorToMessage(error: unknown, fallback = "Die Generierung ist fehlgeschlagen."): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function isValidImageCount(value: JsonValue | undefined): value is number {

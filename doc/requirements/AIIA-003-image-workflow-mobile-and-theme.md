@@ -22,6 +22,15 @@ This requirement defines image presentation, per-image actions, prompt variation
 - Generated images are documented as clearly visible in the main workspace.
 - Supporting controls do not replace the visual focus on generated images.
 
+### Show the model used for each generated result
+**Type:** Functional  
+**Description:** The system must keep the model origin of generated results traceable so users can compare results with the model that produced them at a later time.  
+**Acceptance Criteria:**
+- The existing result metadata below a generated image shows the model used for that generation next to the generation time.
+- The displayed model is resolved from the historical generation record and is not replaced when the active chat model changes.
+- The model metadata uses the same visual styling as the existing time metadata.
+- If a historical model is no longer available in the static model registry, its stored model ID remains visible as a fallback.
+
 ### Support comparison of multiple generated images
 **Type:** Functional  
 **Description:** The system must present multiple generated images in a way that supports comparison.  
@@ -35,6 +44,15 @@ This requirement defines image presentation, per-image actions, prompt variation
 **Acceptance Criteria:**
 - Image actions are documented per image instead of as global controls.
 - A user does not need to search another UI area for actions on a selected image.
+
+### Start an independent chat from an image
+**Type:** Functional  
+**Description:** The system must let users start a new independent chat from each image with an available historical generation request.  
+**Acceptance Criteria:**
+- The action is available directly on the individual image, so a user can choose one result from a multi-image generation.
+- The action creates the independent chat described in AIIA-006.
+- The action is unavailable when the historical request or source message required to restore the image settings is unavailable.
+- While the new chat is being created, repeated activations are prevented.
 
 ### Provide direct download for each image
 **Type:** Functional  

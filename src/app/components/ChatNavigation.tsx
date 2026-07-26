@@ -1,4 +1,4 @@
-import { ArrowLeft, Menu, Plus, Settings, Trash2 } from "lucide-react";
+import { ArrowLeft, Menu, MessageCircle, Settings, Trash2 } from "lucide-react";
 import type { ChatEntity } from "../../db/entities";
 import { formatMessageDate } from "../appHelpers";
 
@@ -42,7 +42,7 @@ export function ChatNavigation(props: {
       </div>
       <div className="nav-actions d-grid gap-2 mt-auto">
         <button className="btn btn-primary d-inline-flex align-items-center justify-content-center gap-2" onClick={props.onCreate}>
-          <Plus size={18} /> Neue Sitzung
+          <MessageCircle size={18} /> Neue Sitzung
         </button>
         <button className="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-2" onClick={props.onOptions}>
           <Settings size={18} /> Optionen

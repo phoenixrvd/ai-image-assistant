@@ -26,6 +26,7 @@
 }
 
 .prompt-card {
+  container-type: inline-size;
   min-width: 0;
   padding: 1rem;
   background: color-mix(in srgb, var(--bs-tertiary-bg) 94%, var(--bs-primary) 6%);
@@ -215,10 +216,20 @@
   border-color: transparent;
 }
 
-.message-time {
+.message-time,
+.message-meta {
   display: block;
   color: var(--bs-secondary-color);
   font-size: 0.75rem;
+}
+
+@container (max-width: 290px) {
+  .prompt-card .message-meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .prompt-repeat,

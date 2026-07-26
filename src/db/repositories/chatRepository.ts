@@ -1,5 +1,5 @@
 import { db } from "../database";
-import type { ChatEntity } from "../entities";
+import type { ChatEntity, ImageEntity, MessageEntity } from "../entities";
 import { createId, nowIso } from "../id";
 
 export type ChatAspectRatio = "square" | "portrait" | "landscape";
@@ -37,6 +37,54 @@ export const chatRepository = {
     const metadata = activeImageModelId ? { chatSettings: { activeImageModelId } } : undefined;
     const chat = { id: createId("chat"), title, metadata, createdAt: now, updatedAt: now };
     await db.chats.add(chat);
+    return chat;
+  },
+
+  async createFromImage(
+    settings: ChatSettings,
+    message: Pick<MessageEntity, "role" | "content" | "metadata">,
+    image: Pick<ImageEntity, "blob" | "mimeType" | "width" | "height" | "prompt" | "modelId">
+  ): Promise<ChatEntity> {
+    const now = nowIso();
+    const messageId = createId("msg");
+    const chatSettings = sanitizeChatSettings(settings);
+    const metadata: Record<string, unknown> = { chatSettings };
+    if (chatSettings.imageInstructions?.trim()) metadata.imageInstructions = chatSettings.imageInstructions;
+    const chat = {
+      id: createId("chat"),
+      title: "Neue Sitzung",
+      metadata: metadata as ChatEntity["metadata"],
+      lastMessageAt: now,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    await db.transaction("rw", db.chats, db.messages, db.images, async () => {
+      await db.chats.add(chat);
+      await db.messages.add({
+        id: messageId,
+        chatId: chat.id,
+        role: message.role,
+        content: message.content,
+        metadata: message.metadata,
+        createdAt: now,
+        updatedAt: now
+      });
+      await db.images.add({
+        id: createId("img"),
+        chatId: chat.id,
+        messageId,
+        blob: image.blob,
+        mimeType: (image.mimeType ?? image.blob.type) || undefined,
+        width: image.width,
+        height: image.height,
+        sizeBytes: image.blob.size,
+        prompt: image.prompt,
+        modelId: image.modelId,
+        createdAt: now,
+        updatedAt: now
+      });
+    });
     return chat;
   },
 

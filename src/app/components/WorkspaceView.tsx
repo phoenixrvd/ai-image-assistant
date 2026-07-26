@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, KeyboardEvent, MouseEvent, RefObject } from "react";
-import { Download, Eraser, Image as ImageIcon, Pin, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Download, Eraser, Image as ImageIcon, MessageCircle, Pin, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { GenerationRequestEntity, ImageEntity } from "../../db/entities";
+import { getModel, getModelLabel } from "../../features/generation/models/registry";
 import { formatMessageDate } from "../appHelpers";
 import { SendProgressButton } from "./SendProgressButton";
 
@@ -47,6 +48,8 @@ export function WorkspaceView(props: {
   onOpenConfig: () => void;
   onDeleteMessage: (messageId: string) => void;
   onRepeatPrompt: (request: GenerationRequestEntity) => void;
+  isCreatingChatFromImage: boolean;
+  onCreateChatFromImage: (image: ImageEntity) => void;
   onTogglePinned: (image: ImageEntity) => void;
   onOverlay: (id: string | undefined) => void;
   onShowNextPinnedImage: () => void;
@@ -163,7 +166,16 @@ export function WorkspaceView(props: {
               {!!imagesByMessageId.byMessage.get(message.id)?.length && (
                 <div className="image-grid">
                   {(imagesByMessageId.byMessage.get(message.id) ?? []).map((image) => (
-                    <ImageCard key={image.id} image={image} overlayActive={props.overlayImageId === image.id} onContentLoaded={handleResultContentLoaded} onTogglePinned={props.onTogglePinned} onOverlay={props.onOverlay} />
+                    <ImageCard
+                      key={image.id}
+                      image={image}
+                      overlayActive={props.overlayImageId === image.id}
+                      onContentLoaded={handleResultContentLoaded}
+                      onCreateChatFromImage={image.requestId && requestsById.has(image.requestId) ? props.onCreateChatFromImage : undefined}
+                      isCreatingChatFromImage={props.isCreatingChatFromImage}
+                      onTogglePinned={props.onTogglePinned}
+                      onOverlay={props.onOverlay}
+                    />
                   ))}
                 </div>
               )}
@@ -179,7 +191,10 @@ export function WorkspaceView(props: {
                 {message.content}
               </button>
               <div className="d-flex flex-wrap align-items-center gap-2 mt-1">
-                <small className="message-time">{formatMessageDate(message.createdAt)}</small>
+                <small className="message-meta">
+                  {formatMessageDate(message.createdAt)}
+                  {request && <span> · {getGenerationModelLabel(request)}</span>}
+                </small>
                 <div className="d-inline-flex align-items-center gap-2 ms-auto">
                   {request && (
                     <button type="button" className="prompt-repeat" aria-label="Prompt wiederholen" onClick={() => props.onRepeatPrompt(request)}>
@@ -198,7 +213,15 @@ export function WorkspaceView(props: {
           <article className="prompt-card">
             <div className="image-grid">
               {imagesByMessageId.withoutMessage.map((image) => (
-                <ImageCard key={image.id} image={image} overlayActive={props.overlayImageId === image.id} onContentLoaded={handleResultContentLoaded} onTogglePinned={props.onTogglePinned} onOverlay={props.onOverlay} />
+                <ImageCard
+                  key={image.id}
+                  image={image}
+                  overlayActive={props.overlayImageId === image.id}
+                  onContentLoaded={handleResultContentLoaded}
+                  isCreatingChatFromImage={props.isCreatingChatFromImage}
+                  onTogglePinned={props.onTogglePinned}
+                  onOverlay={props.onOverlay}
+                />
               ))}
             </div>
           </article>
@@ -268,6 +291,11 @@ export function WorkspaceView(props: {
 
 function getFirstContentId(messages: MessageView[], images: ImageEntity[]) {
   return messages[0]?.id ?? images[0]?.id ?? "empty";
+}
+
+function getGenerationModelLabel(request: GenerationRequestEntity): string {
+  const model = getModel(request.modelId);
+  return model ? getModelLabel(model) : request.modelId;
 }
 
 function isNearBottom(element: HTMLElement) {
@@ -424,7 +452,15 @@ function scrollToImage(scrollElement: HTMLElement, image: HTMLElement) {
   scrollElement.scrollTo({ top: Math.max(0, imageTop - scrollPaddingTop - scrollTargetGap), behavior: "smooth" });
 }
 
-function ImageCard(props: { image: ImageEntity; overlayActive: boolean; onContentLoaded: () => void; onTogglePinned: (image: ImageEntity) => void; onOverlay: (id: string | undefined) => void }) {
+function ImageCard(props: {
+  image: ImageEntity;
+  overlayActive: boolean;
+  onContentLoaded: () => void;
+  onCreateChatFromImage?: (image: ImageEntity) => void;
+  isCreatingChatFromImage: boolean;
+  onTogglePinned: (image: ImageEntity) => void;
+  onOverlay: (id: string | undefined) => void;
+}) {
   const [url, setUrl] = useState<string>();
   const [isNarrowerThanPreview, setIsNarrowerThanPreview] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -479,6 +515,17 @@ function ImageCard(props: { image: ImageEntity; overlayActive: boolean; onConten
         <button type="button" className="image-action" aria-label="Bild herunterladen" onClick={download}>
           <Download size={17} aria-hidden="true" />
         </button>
+        {props.onCreateChatFromImage && (
+          <button
+            type="button"
+            className="image-action"
+            aria-label="Neuen Chat mit diesem Bild starten"
+            disabled={props.isCreatingChatFromImage}
+            onClick={() => props.onCreateChatFromImage?.(props.image)}
+          >
+            <MessageCircle size={17} aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           className={props.image.pinned ? "image-action active" : "image-action"}

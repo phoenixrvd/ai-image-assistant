@@ -53,12 +53,13 @@ This requirement defines the functional UI zones and the session-oriented flow a
 - Per chat, the system persists and restores uploaded reference images as draft settings.
 - Live settings from one chat are never shown in another chat.
 
-### Keep prompt empty for newly created chats
+### Keep prompt empty for regularly created chats
 **Type:** Functional  
-**Description:** Newly created chats must start with an empty prompt input.  
+**Description:** Chats created through the regular new-chat action must start with an empty prompt input.  
 **Acceptance Criteria:**
-- Creating a new chat opens it with an empty prompt input.
+- Creating a chat through the regular new-chat action opens it with an empty prompt input.
 - Draft content from other chats is not carried over.
+- Image-derived chats are governed by AIIA-006 and restore the historical prompt of their selected image instead.
 
 ### Reset transient generation errors on chat change
 **Type:** Functional  

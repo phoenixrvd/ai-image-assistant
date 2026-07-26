@@ -77,6 +77,7 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - The default is `fal.ai: Grok Imagine Edit`.
 - New chats preselect the default model.
 - If the default model is not usable, the first usable image model is selected.
+- Image-derived chats restore the model ID of the selected image's historical generation request instead of the global default.
 
 ### Fixed providers without dynamic creation
 **Type:** Functional  

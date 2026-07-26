@@ -4,7 +4,7 @@
 
 - Use npm; `package-lock.json` is the lockfile.
 - Dev server: `npm run dev` starts Vite on `0.0.0.0`.
-- Verify with `npm run build`; it writes build metadata, runs `tsc -b`, then `vite build`.
+- For feature changes, do not run `npm run build`; the application is verified through the user's active watch mode. The build writes build metadata, runs `tsc -b`, then `vite build`.
 - Typecheck only: `npm run typecheck`.
 - No test or lint scripts are currently defined.
 - After changing `public/pwa.svg`, run `npm run generate:icons`.
