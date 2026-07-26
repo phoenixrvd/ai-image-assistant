@@ -212,3 +212,22 @@ This requirement defines image presentation, per-image actions, prompt variation
 - After the first successful image generation with a model, a record is created using the actually measured duration.
 - After each further successful image generation, the stored estimate is updated to the average of the previous and the newly measured duration.
 - Failed generations do not update the stored estimate.
+
+### Continue generation while switching chats
+**Type:** Functional  
+**Description:** An image generation must continue while the user navigates to another chat in the same browser tab.  
+**Acceptance Criteria:**
+- The running generation remains associated with its originating chat ID.
+- Returning to that chat shows the current progress and running state.
+- A generation in one chat does not block generation in another chat.
+- At most one generation runs per chat.
+- The runtime job, abort controller, start time, and progress are held in memory only and are not restored after reload.
+
+### Cancel an active generation
+**Type:** Functional  
+**Description:** The active generation can be cancelled from the send control.  
+**Acceptance Criteria:**
+- While generating, the send control shows a stop icon instead of the send icon.
+- Clicking the control aborts the provider request.
+- A cancelled generation does not create a visible message, result, or image.
+- Closing or reloading the tab aborts all in-memory generations without resuming them later.

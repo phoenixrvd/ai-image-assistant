@@ -30,7 +30,7 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - The GUI provides inputs for provider settings.
 - The GUI provides inputs for API URL, API key, and active/inactive status per fixed provider.
 - The GUI does not provide inputs for model names, model types, default parameters, or model capabilities.
-- Static model definitions in the implementation provide model names, types, provider mapping, default parameters, and reference-image capability.
+- Static model definitions in the implementation provide model names, types, provider mapping, default parameters, reference-image capability, and image-input capability for text or chat-completion models.
 
 ### Local configuration persistence
 **Type:** Constraint  
@@ -48,15 +48,16 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - Models whose provider is inactive or missing URL or credential values are not offered for generation.
 - Model names and capabilities are read from static model definitions, not from local storage.
 
-### Require image and text model configuration
+### Require image and image-capable text model configuration
 **Type:** Functional  
-**Description:** The system must require at least one usable image model and one usable text or chat-completion model before the core workflow can be used.  
+**Description:** The system must require at least one usable image model and one usable text or chat-completion model with image-input capability before the core workflow can be used.  
 **Acceptance Criteria:**
 - If the minimum usable model configuration is missing, the global options area opens automatically.
 - The minimum usable model configuration requires at least one usable image model.
-- The minimum usable model configuration requires at least one usable text or chat-completion model.
+- The minimum usable model configuration requires at least one usable text or chat-completion model with image-input capability.
 - Image models are used for image generation.
-- Text or chat-completion models are used for automatic chat naming.
+- Image-capable text or chat-completion models analyze the first successfully generated image for automatic chat naming.
+- Text or chat-completion models without image-input capability do not satisfy the minimum model configuration.
 - Incomplete or inactive models are not counted toward the minimum usable model configuration.
 
 ### Provide an options area for global settings

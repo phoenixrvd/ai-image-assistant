@@ -5,9 +5,9 @@ import { getModel } from "../models/registry";
 import type { StaticModel } from "../models/types";
 import { isBrowserOffline, providerConnectivityError, sanitizeProviderError } from "../providers/sanitize";
 import { getProviderForModel } from "../providers/registry";
-import type { ImageGenerationInput, NormalizedGenerationOutput } from "../providers/types";
+import type { ImageGenerationInput, NormalizedGenerationOutput, NormalizedImageOutput } from "../providers/types";
 
-export async function generateImages(chatId: string, modelId: string, input: ImageGenerationInput): Promise<void> {
+export async function generateImages(chatId: string, modelId: string, input: ImageGenerationInput, signal?: AbortSignal): Promise<NormalizedImageOutput> {
   const model = getModel(modelId);
   const providerConfig = model ? await providerConfigRepository.get(model.providerId) : undefined;
   if (!model || !providerConfig || !isProviderUsable(providerConfig) || !["image", "image-edit"].includes(model.type)) throw new Error("Es ist kein verwendbares Bildmodell aktiv.");
@@ -22,11 +22,16 @@ export async function generateImages(chatId: string, modelId: string, input: Ima
     prompt: input.prompt,
     parameters
   });
+  await generationRepository.markImageGenerationRunning(requestId);
 
   try {
-    const { output, durationSeconds } = await requestImages(model, providerConfig, input);
+    signal?.throwIfAborted();
+    const { output, durationSeconds } = await requestImages(model, providerConfig, input, signal);
+    const firstImage = output.images[0];
+    if (!firstImage) throw new Error("Provider-Antwort enthält kein Bild.");
+    signal?.throwIfAborted();
 
-    await generationRepository.completeImageGenerationSuccess({
+    const committed = await generationRepository.completeImageGenerationSuccess({
       requestId,
       chatId,
       modelId: model.id,
@@ -36,26 +41,36 @@ export async function generateImages(chatId: string, modelId: string, input: Ima
       images: output.images,
       rawMetadata: output.rawMetadata
     });
+    if (!committed) throw new DOMException("Die Generierung wurde abgebrochen.", "AbortError");
     await modelLoadEstimateRepository.recordSuccessfulDuration(model.providerId, model.providerModelName, durationSeconds);
+    return firstImage;
   } catch (error) {
+    if (signal?.aborted || isAbortError(error)) {
+      await generationRepository.cancelImageGeneration(requestId);
+      throw error;
+    }
     await generationRepository.completeImageGenerationFailure({ requestId, error: sanitizeProviderError(error) });
     throw error;
   }
 }
 
-async function requestImages(model: StaticModel, providerConfig: NonNullable<Awaited<ReturnType<typeof providerConfigRepository.get>>>, input: ImageGenerationInput): Promise<{ output: NormalizedGenerationOutput; durationSeconds: number }> {
+async function requestImages(model: StaticModel, providerConfig: NonNullable<Awaited<ReturnType<typeof providerConfigRepository.get>>>, input: ImageGenerationInput, signal?: AbortSignal): Promise<{ output: NormalizedGenerationOutput; durationSeconds: number }> {
   try {
     if (isBrowserOffline()) throw new Error(providerConnectivityError);
 
     const provider = getProviderForModel(model);
     const startedAtMs = Date.now();
-    const output = await provider.generateImage(model, providerConfig, input);
+    const output = await provider.generateImage(model, providerConfig, input, signal);
     const normalizedOutput = { ...output, images: await normalizeOutputImageSizes(output.images) };
     const durationSeconds = (Date.now() - startedAtMs) / 1000;
     return { output: normalizedOutput, durationSeconds };
   } catch (error) {
     throw new Error(sanitizeProviderError(error));
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 

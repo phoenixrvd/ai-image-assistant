@@ -39,13 +39,14 @@ class OpenAiImage15 implements StaticModel {
   defaultParameters = { quality: "low" };
 }
 
-class OpenAiSmallText implements StaticModel {
-  id = "openai-small-text";
+class OpenAiGpt4oMini implements StaticModel {
+  id = "openai-gpt-4o-mini";
   providerId = "openai" as const;
-  name = "Small Text";
+  name = "GPT-4o mini";
   type = "text" as const;
-  providerModelName = "gpt-4.1-nano";
+  providerModelName = "gpt-4o-mini";
   supportsReferenceImages = false;
+  supportsImageInput = true;
 }
 
 class FalSeedreamV5LiteEdit implements StaticModel {
@@ -213,7 +214,7 @@ const models: StaticModel[] = [
   new GrokImagineImage(),
   new GrokImagineImageQuality(),
   new OpenAiImage15(),
-  new OpenAiSmallText(),
+  new OpenAiGpt4oMini(),
   new FalSeedreamV5LiteEdit(),
   new FalFlux2Flex(),
   new FalFlux2Klein9bEdit(),
@@ -252,6 +253,10 @@ export function isModelUsable(model: StaticModel, providerConfigs: ProviderConfi
 
 export function modelSupportsReferenceImages(model?: StaticModel): boolean {
   return model?.supportsReferenceImages === true;
+}
+
+export function modelSupportsImageInput(model?: StaticModel): boolean {
+  return model?.supportsImageInput === true;
 }
 
 export function modelRequiresReferenceImages(model?: StaticModel): boolean {

@@ -31,6 +31,14 @@ export const generationRepository = {
     return { requestId };
   },
 
+  async markImageGenerationRunning(requestId: string): Promise<void> {
+    await db.generationRequests.update(requestId, { status: "running", updatedAt: nowIso() });
+  },
+
+  async cancelImageGeneration(requestId: string): Promise<void> {
+    await db.generationRequests.update(requestId, { status: "cancelled", updatedAt: nowIso() });
+  },
+
   async completeImageGenerationSuccess(input: {
     requestId: string;
     chatId: string;
@@ -40,14 +48,20 @@ export const generationRepository = {
     parameters?: Record<string, JsonValue>;
     rawMetadata?: Record<string, JsonValue>;
     images: GeneratedImageInput[];
-  }): Promise<void> {
+  }): Promise<boolean> {
     const now = nowIso();
     const messageId = createId("msg");
     const resultId = createId("res");
     const imageIds = input.images.map(() => createId("img"));
 
+    let committed = false;
     await db.transaction("rw", db.messages, db.chats, db.generationRequests, db.generationResults, db.images, async () => {
+      const request = await db.generationRequests.get(input.requestId);
+      if (!request || request.status !== "running") return;
+      if (!(await db.chats.get(input.chatId))) return;
+
       await db.messages.add({ id: messageId, chatId: input.chatId, role: "user", content: input.prompt, requestId: input.requestId, createdAt: now, updatedAt: now });
+
       await db.generationRequests.update(input.requestId, {
         messageId,
         chatId: input.chatId,
@@ -77,11 +91,14 @@ export const generationRepository = {
         }))
       );
       await db.chats.update(input.chatId, { lastMessageAt: now, updatedAt: now });
+      committed = true;
     });
+    return committed;
   },
 
   async completeImageGenerationFailure(input: { requestId: string; error: string }): Promise<void> {
-    await db.generationRequests.update(input.requestId, { status: "failed", error: input.error, updatedAt: nowIso() });
+    const request = await db.generationRequests.get(input.requestId);
+    if (request?.status !== "cancelled") await db.generationRequests.update(input.requestId, { status: "failed", error: input.error, updatedAt: nowIso() });
   },
 
   async listResultsByChat(chatId: string): Promise<GenerationResultEntity[]> {

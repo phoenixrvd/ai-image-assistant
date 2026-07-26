@@ -13,7 +13,7 @@ The application should support image generation through different providers. The
 ## Decision
 Providers are encapsulated behind a shared provider contract. Providers cannot be dynamically created in the GUI. Local persistence stores `ProviderConfig` records for the fixed providers only.
 
-Models are represented as static model classes in the implementation. Model classes define provider mapping, provider model name, model type, default parameters, and capabilities such as reference-image support. The supported model types are `text`, `image`, and `image-edit`.
+Models are represented as static model classes in the implementation. Model classes define provider mapping, provider model name, model type, default parameters, and capabilities such as reference-image support or image input for text models. The supported model types remain `text`, `image`, and `image-edit`; image understanding is represented as a capability of a text model because the model still produces text output.
 
 ## Consequences
 - New providers can be added without making UI or use-case code provider-specific.
@@ -21,3 +21,4 @@ Models are represented as static model classes in the implementation. Model clas
 - New model variants require a static model implementation instead of a local database entry.
 - OpenRouter and similar services are not initial built-in providers.
 - Additional model types or strongly divergent provider capabilities require an extension of the shared contract.
+- Multimodal text requests may include image input when the static model declares support and its provider adapter implements the shared image-input contract.

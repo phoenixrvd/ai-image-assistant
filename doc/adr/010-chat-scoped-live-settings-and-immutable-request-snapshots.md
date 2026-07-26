@@ -24,3 +24,6 @@ Global or cross-chat UI state can leak between chats. Failed generation attempts
 - positive: Generation attempts are traceable through immutable request snapshots, including failures.
 - positive: Failed attempts do not clutter visible chat history.
 - negative: Additional repository and state synchronization logic is required.
+
+## Clarification
+The persisted request snapshot remains the technical history of a submission and is separate from the in-memory runtime job. Runtime progress, start time, abort controller, and active-job ownership are not persisted and are discarded when the tab closes or reloads. Switching chats within the same tab does not discard the runtime job.

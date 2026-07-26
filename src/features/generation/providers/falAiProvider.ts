@@ -21,7 +21,7 @@ export class FalAiProvider implements ProviderAdapter {
     return type === "image" || type === "image-edit";
   }
 
-  async generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput> {
+  async generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput, signal?: AbortSignal): Promise<NormalizedGenerationOutput> {
     const references = model.supportsReferenceImages ? (input.references ?? []) : [];
     const mergedParameters = mergeParameters(model.defaultParameters, input.parameters);
     const body: Record<string, JsonValue> = {
@@ -48,7 +48,8 @@ export class FalAiProvider implements ProviderAdapter {
         Authorization: `Key ${providerConfig.apiKey ?? ""}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal
     });
 
     if (!response.ok) {
@@ -56,7 +57,7 @@ export class FalAiProvider implements ProviderAdapter {
     }
 
     const payload = (await response.json()) as FalAiImageResponse;
-    const images = await Promise.all((payload.images ?? []).map((entry) => falImageToBlob(entry)));
+    const images = await Promise.all((payload.images ?? []).map((entry) => falImageToBlob(entry, signal)));
     if (images.length === 0) throw new Error("Provider-Antwort enthält kein Bild.");
     return { images, rawMetadata: { seed: payload.seed ?? null } };
   }
@@ -144,7 +145,7 @@ function readBooleanParameter(value: JsonValue | undefined, fallback: boolean): 
   return fallback;
 }
 
-async function falImageToBlob(entry: FalAiFile) {
+async function falImageToBlob(entry: FalAiFile, signal?: AbortSignal) {
   const url = entry.url?.trim();
   if (!url) throw new Error("Provider-Antwort enthält kein Bild.");
   if (url.startsWith("data:")) {
@@ -152,7 +153,7 @@ async function falImageToBlob(entry: FalAiFile) {
     return { blob, mimeType: blob.type || "image/png" };
   }
 
-  const response = await fetch(url);
+  const response = await fetch(url, { signal });
   const blob = await response.blob();
   return { blob, mimeType: blob.type || "image/png" };
 }

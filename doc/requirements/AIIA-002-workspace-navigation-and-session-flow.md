@@ -76,16 +76,19 @@ This requirement defines the functional UI zones and the session-oriented flow a
 - Compact time information such as `14:32`, `Gestern`, or `2 Tage` may be shown when it represents the last activity or last message time.
 - The navigation area remains visually reduced and focused on session access.
 
-### Automatically name sessions from the first prompt
+### Automatically name sessions from the first generated image
 **Type:** Functional  
-**Description:** The system must automatically generate a compact session title from the first submitted prompt by using the configured text or chat-completion model.  
+**Description:** The system must automatically generate a compact session title from the first successfully stored image by using a configured text or chat-completion model with image-input capability.  
 **Acceptance Criteria:**
 - A newly created session may start with a temporary default title.
-- After the first prompt is submitted in a session, the system starts automatic title generation asynchronously.
-- Automatic title generation does not block image generation or the rest of the prompt submission flow.
+- After the first image is generated and stored successfully in a session, the system starts automatic title generation asynchronously.
+- The title model receives the first stored image as image input and derives the title from its visible content instead of the submitted image prompt.
+- If one request creates multiple images, the first image in the result is used for automatic title generation.
+- Automatic title generation does not block display of the generated image or further use of the session.
 - The generated title contains at most five words.
 - The generated title is stored as the session title and shown in the navigation.
-- Automatic title generation runs only for the first prompt in a session.
+- Automatic title generation runs only for the first successfully generated image in a session.
+- Failed image generations do not trigger automatic title generation; the first later successful image may trigger it instead.
 - If automatic title generation fails, the session remains usable with its existing title.
 
 ### Allow manual session renaming

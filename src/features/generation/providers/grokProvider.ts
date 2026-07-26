@@ -8,8 +8,8 @@ export class GrokProvider extends OpenAiCompatibleProvider {
   id = "xai";
   label = "xAI / Grok";
 
-  async generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput) {
-    if (!input.references?.length) return super.generateImage(model, providerConfig, input);
+  async generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput, signal?: AbortSignal) {
+    if (!input.references?.length) return super.generateImage(model, providerConfig, input, signal);
 
     const defaultParameters = normalizeXaiParameters(model.defaultParameters ?? {});
     const body = {
@@ -29,14 +29,15 @@ export class GrokProvider extends OpenAiCompatibleProvider {
         Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal
     });
 
     if (!response.ok) {
       throw new Error(await responseToSafeError(response));
     }
 
-    return this.normalize(await response.json());
+    return this.normalize(await response.json(), signal);
   }
 
   protected buildBody(model: StaticModel, input: ImageGenerationInput): Record<string, JsonValue> {

@@ -45,6 +45,7 @@ export function WorkspaceView(props: {
   pinnedImageCount: number;
   scrollToEndRequest: number;
   onGenerate: () => void;
+  onCancel: () => void;
   onOpenConfig: () => void;
   onDeleteMessage: (messageId: string) => void;
   onRepeatPrompt: (request: GenerationRequestEntity) => void;
@@ -94,7 +95,11 @@ export function WorkspaceView(props: {
   }, [props.prompt]);
 
   function handleSubmit() {
-    if (!props.canGenerate || props.isGenerating) return;
+    if (props.isGenerating) {
+      props.onCancel();
+      return;
+    }
+    if (!props.canGenerate) return;
     props.onGenerate();
   }
 
@@ -278,8 +283,9 @@ export function WorkspaceView(props: {
               <SendProgressButton
                 progressPercent={props.generationProgressPercent}
                 loading={props.isGenerating}
-                disabled={!props.canGenerate || props.isGenerating}
-                ariaLabel="Generieren"
+                disabled={!props.canGenerate && !props.isGenerating}
+                ariaLabel={props.isGenerating ? "Generierung abbrechen" : "Generieren"}
+                onCancel={props.onCancel}
               />
             </div>
           </div>
@@ -462,12 +468,14 @@ function ImageCard(props: {
   onOverlay: (id: string | undefined) => void;
 }) {
   const [url, setUrl] = useState<string>();
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isNarrowerThanPreview, setIsNarrowerThanPreview] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     const objectUrl = URL.createObjectURL(props.image.blob);
     setUrl(objectUrl);
+    setIsLoaded(false);
     setIsNarrowerThanPreview(false);
     return () => URL.revokeObjectURL(objectUrl);
   }, [props.image.blob]);
@@ -494,6 +502,7 @@ function ImageCard(props: {
   }
 
   function handleImageLoad() {
+    setIsLoaded(true);
     props.onContentLoaded();
   }
 
@@ -502,8 +511,17 @@ function ImageCard(props: {
       <button type="button" className="image-preview-button" aria-label="Bild als Overlay öffnen" onClick={() => props.onOverlay(props.image.id)}>
         {url ? (
           <>
-            <span className="image-preview-backdrop" aria-hidden="true" style={{ backgroundImage: `url(${url})` }} />
-            <img ref={imageRef} src={url} alt={props.image.prompt ?? "Generiertes Bild"} onLoad={handleImageLoad} />
+            <span className="image-preview-backdrop" aria-hidden="true" style={{ backgroundImage: isLoaded ? `url(${url})` : undefined }} />
+            <img
+              ref={imageRef}
+              src={url}
+              alt={props.image.prompt ?? "Generiertes Bild"}
+              width={props.image.width}
+              height={props.image.height}
+              loading="lazy"
+              decoding="async"
+              onLoad={handleImageLoad}
+            />
           </>
         ) : (
           <span className="image-placeholder">

@@ -15,6 +15,7 @@ export interface StaticModel {
   type: ModelType;
   providerModelName: string;
   supportsReferenceImages: boolean;
+  supportsImageInput?: boolean;
   requiresReferenceImages?: boolean;
   defaultParameters?: Record<string, JsonValue>;
 }

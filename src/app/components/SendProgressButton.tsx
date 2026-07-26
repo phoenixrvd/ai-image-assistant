@@ -1,16 +1,17 @@
 import type { CSSProperties } from "react";
-import { Send } from "lucide-react";
+import { Send, Square } from "lucide-react";
 
-export function SendProgressButton(props: { progressPercent: number; loading: boolean; disabled: boolean; ariaLabel: string }) {
+export function SendProgressButton(props: { progressPercent: number; loading: boolean; disabled: boolean; ariaLabel: string; onCancel: () => void }) {
   const style = { "--progress": `${Math.max(0, Math.min(100, props.progressPercent))}%` } as CSSProperties;
 
   return (
     <button
-      type="submit"
+      type={props.loading ? "button" : "submit"}
       className={props.loading ? "send-button is-loading" : "send-button"}
       style={style}
       aria-label={props.ariaLabel}
       disabled={props.disabled}
+      onClick={props.loading ? props.onCancel : undefined}
     >
       <span className="send-button__ring" aria-hidden="true" />
       {props.loading && (
@@ -19,7 +20,7 @@ export function SendProgressButton(props: { progressPercent: number; loading: bo
         </svg>
       )}
       <span className="send-button__inner" aria-hidden="true" />
-      <Send size={18} aria-hidden="true" className="send-button__icon" />
+      {props.loading ? <Square size={15} fill="currentColor" aria-hidden="true" className="send-button__icon" /> : <Send size={18} aria-hidden="true" className="send-button__icon" />}
     </button>
   );
 }

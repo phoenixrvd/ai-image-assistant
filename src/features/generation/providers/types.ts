@@ -15,6 +15,7 @@ export interface ImageGenerationInput {
 export interface TextGenerationInput {
   system: string;
   prompt: string;
+  image?: NormalizedImageOutput;
   parameters?: Record<string, JsonValue>;
 }
 
@@ -33,6 +34,6 @@ export interface ProviderAdapter {
   id: string;
   label: string;
   supportsModelType(type: ModelType): boolean;
-  generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput): Promise<NormalizedGenerationOutput>;
+  generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput, signal?: AbortSignal): Promise<NormalizedGenerationOutput>;
   generateText(model: StaticModel, providerConfig: ProviderConfigEntity, input: TextGenerationInput): Promise<string>;
 }

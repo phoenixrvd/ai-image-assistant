@@ -12,9 +12,11 @@ import { imageRepository } from "../db/repositories/imageRepository";
 import { messageRepository } from "../db/repositories/messageRepository";
 import { modelLoadEstimateRepository } from "../db/repositories/modelLoadEstimateRepository";
 import { providerConfigRepository } from "../db/repositories/providerConfigRepository";
-import { listUsableModels, modelSupportsReferenceImages, selectDefaultImageModel } from "../features/generation/models/registry";
+import { listUsableModels, modelSupportsImageInput, modelSupportsReferenceImages, selectDefaultImageModel } from "../features/generation/models/registry";
+import type { NormalizedImageOutput } from "../features/generation/providers/types";
 import { generateChatTitle } from "../features/generation/services/chatTitleService";
 import { generateImages } from "../features/generation/services/generationService";
+import { generationCoordinator } from "../features/generation/services/generationCoordinator";
 import { applyTheme, closePanels, createReferenceSnapshots, fileToDataUrl, readChatNavOpenState, refreshChatData, type StoredReference, type UploadedReference } from "./appHelpers";
 import { ChatNavigation } from "./components/ChatNavigation";
 import { ConfigPanel } from "./components/ConfigPanel";
@@ -27,8 +29,6 @@ const navSwipeEdgeWidth = 96;
 const navSwipeDragStartThreshold = 10;
 const navSwipeThreshold = 60;
 
-const progressTickMs = 100;
-const progressResetDelayMs = 300;
 const maxAutoProgressPercent = 95;
 
 export function App() {
@@ -60,9 +60,9 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   const [uploadedReferences, setUploadedReferences] = useState<UploadedReference[]>([]);
   const [referenceMode, setReferenceMode] = useState<"default" | "restored">("default");
   const [activeImageModelId, setActiveImageModelId] = useState<string>();
-  const [isCreatingInitialGeneration, setIsCreatingInitialGeneration] = useState(false);
   const [initialGenerationError, setInitialGenerationError] = useState<string>();
   const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
+  const [, setGenerationVersion] = useState(0);
   const [generationProgressPercent, setGenerationProgressPercent] = useState(0);
   const [leftDragging, setLeftDragging] = useState(false);
   const [settingsReadyChatId, setSettingsReadyChatId] = useState<string>();
@@ -82,6 +82,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   const showOptions = props.mode === "options";
   const rightOpen = Boolean(props.configOpen);
   const activeChat = useMemo(() => chatsQuery.data?.find((chat) => chat.id === activeChatId), [activeChatId, chatsQuery.data]);
+  const generationJob = generationCoordinator.get(activeChatId);
+  const hasActiveGenerationJobs = generationCoordinator.hasActiveJobs();
   const messagesQuery = useQuery({
     queryKey: ["messages", activeChatId],
     queryFn: () => messageRepository.listByChat(activeChatId!),
@@ -102,42 +104,18 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   const defaultImageModel = useMemo(() => selectDefaultImageModel(usableImageModels, defaultImageModelIdQuery.data), [defaultImageModelIdQuery.data, usableImageModels]);
   const selectedImageModelId = activeImageModelId ?? defaultImageModel?.id;
   const activeModel = useMemo(() => usableImageModels.find((model) => model.id === selectedImageModelId) ?? usableImageModels[0], [selectedImageModelId, usableImageModels]);
-  const activeTextModel = useMemo(() => listUsableModels(["text"], providerConfigsQuery.data ?? [])[0], [providerConfigsQuery.data]);
-  const hasMinimumModelConfig = Boolean(activeModel && activeTextModel);
+  const activeTitleModel = useMemo(() => listUsableModels(["text"], providerConfigsQuery.data ?? []).find(modelSupportsImageInput), [providerConfigsQuery.data]);
+  const hasMinimumModelConfig = Boolean(activeModel && activeTitleModel);
   const overlayImage = useMemo(() => imagesQuery.data?.find((image) => image.id === overlayImageId), [imagesQuery.data, overlayImageId]);
   const pinnedImages = useMemo(() => (imagesQuery.data ?? []).filter((image) => image.pinned), [imagesQuery.data]);
   const activePinnedImages = referenceMode === "restored" ? [] : pinnedImages;
   const imageInstructions = readImageInstructions(activeChat);
-
-  const generateMutation = useMutation({
-    onMutate: () => {
-      void requestScreenWakeLock();
-    },
-    mutationFn: async (submittedPrompt: string) => {
-      const referencesEnabled = modelSupportsReferenceImages(activeModel);
-      const referenceSnapshots = referencesEnabled ? await createReferenceSnapshots(activePinnedImages, uploadedReferences) : undefined;
-      const references = referenceSnapshots?.map((reference) => reference.dataUrl);
-      const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(activeModel!.providerId, activeModel!.providerModelName);
-      startGenerationProgress(estimatedSeconds);
-      return generateImages(activeChatId!, activeModel!.id, { prompt: submittedPrompt, instructions: imageInstructions, imageCount, aspectRatio, references, referenceSnapshots });
-    },
-    onSuccess: (_, submittedPrompt) => {
-      finishGenerationProgress();
-      triggerChatTitleGeneration(activeChatId!, submittedPrompt, (messagesQuery.data?.length ?? 0) === 0);
-      return refreshChatData(queryClient, activeChatId);
-    },
-    onError: () => {
-      cancelGenerationProgress();
-      return refreshChatData(queryClient, activeChatId);
-    }
-  });
 
   const createChatMutation = useMutation({
     mutationFn: () => chatRepository.create("Neue Sitzung", defaultImageModel?.id),
     onMutate: () => {
       clearReferenceSelection();
       setInitialGenerationError(undefined);
-      generateMutation.reset();
     },
     onSuccess: async (chat) => {
       navigate(`/chats/${chat.id}`);
@@ -152,7 +130,6 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       chatRepository.createFromImage(getHistoricalChatSettings(request), { role: message.role, content: message.content, metadata: message.metadata }, image),
     onSuccess: async (chat) => {
       setInitialGenerationError(undefined);
-      generateMutation.reset();
       navigate(`/chats/${chat.id}`);
       setLeftOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
@@ -162,7 +139,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     }
   });
 
-  const isGenerating = generateMutation.isPending || isCreatingInitialGeneration;
+  const isGenerating = generationJob?.phase === "preparing" || generationJob?.phase === "running" || generationJob?.phase === "cancelling";
 
   useEffect(() => {
     if (!activeImageModelId || usableImageModels.some((model) => model.id === activeImageModelId)) return;
@@ -223,12 +200,20 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     navigate("/options", { replace: true });
   }, [hasMinimumModelConfig, navigate, providerConfigsQuery.isSuccess, showOptions]);
 
-  useEffect(() => () => stopGenerationProgress(), []);
+  useEffect(() => generationCoordinator.subscribe(() => setGenerationVersion((version) => version + 1)), []);
 
   useEffect(() => {
-    if (isGenerating) return;
+    if (hasActiveGenerationJobs) {
+      void requestScreenWakeLock();
+    } else {
+      void releaseScreenWakeLock();
+    }
+  }, [hasActiveGenerationJobs]);
+
+  useEffect(() => {
+    if (hasActiveGenerationJobs) return;
     void releaseScreenWakeLock();
-  }, [isGenerating]);
+  }, [hasActiveGenerationJobs]);
 
   useEffect(() => {
     if (!isGenerating) return;
@@ -242,6 +227,24 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     };
   }, [isGenerating]);
 
+  useEffect(() => {
+    if (generationProgressTimerRef.current !== undefined) window.clearInterval(generationProgressTimerRef.current);
+    if (!generationJob || generationJob.phase === "preparing" || !generationJob.startedAt || !generationJob.estimatedSeconds) {
+      setGenerationProgressPercent(generationJob?.phase === "succeeded" ? 100 : 0);
+      return;
+    }
+
+    const update = () => {
+      const elapsed = Date.now() - generationJob.startedAt!;
+      setGenerationProgressPercent(Math.min(maxAutoProgressPercent, (elapsed / (generationJob.estimatedSeconds! * 1000)) * 100));
+    };
+    update();
+    generationProgressTimerRef.current = window.setInterval(update, 100);
+    return () => {
+      if (generationProgressTimerRef.current !== undefined) window.clearInterval(generationProgressTimerRef.current);
+    };
+  }, [generationJob?.chatId, generationJob?.phase, generationJob?.startedAt, generationJob?.estimatedSeconds]);
+
   useEffect(
     () => () => {
       void releaseScreenWakeLock();
@@ -253,7 +256,6 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     if (showOptions || !activeChatId) {
       setSettingsReadyChatId(undefined);
       setInitialGenerationError(undefined);
-      generateMutation.reset();
       setPrompt("");
       setImageCount(1);
       setAspectRatio("portrait");
@@ -266,7 +268,6 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     let cancelled = false;
     setSettingsReadyChatId(undefined);
     setInitialGenerationError(undefined);
-    generateMutation.reset();
 
     void chatRepository.readSettings(activeChatId).then((settings) => {
       if (cancelled) return;
@@ -309,7 +310,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
   async function submitPrompt() {
     const submittedPrompt = prompt.trim();
-    if (!submittedPrompt || !activeModel) return;
+    if (isGenerating || !submittedPrompt || !activeModel) return;
     setInitialGenerationError(undefined);
     void requestScreenWakeLock();
 
@@ -318,24 +319,31 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       const chat = await chatRepository.create("Neue Sitzung", defaultImageModel?.id);
       navigate(`/chats/${chat.id}`);
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
-      setIsCreatingInitialGeneration(true);
-      try {
-        const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(activeModel.providerId, activeModel.providerModelName);
-        startGenerationProgress(estimatedSeconds);
-        await generateImages(chat.id, activeModel.id, { prompt: submittedPrompt, instructions: "", imageCount, aspectRatio });
-        finishGenerationProgress();
-        triggerChatTitleGeneration(chat.id, submittedPrompt, true);
-        await refreshChatData(queryClient, chat.id);
-      } catch (error) {
-        cancelGenerationProgress();
-        setInitialGenerationError(errorToMessage(error));
-        await refreshChatData(queryClient, chat.id);
-      } finally {
-        setIsCreatingInitialGeneration(false);
-      }
+      startGeneration(chat.id, activeModel.id, submittedPrompt, "", true);
       return;
     }
-    generateMutation.mutate(submittedPrompt);
+    const shouldGenerateTitle = imagesQuery.isSuccess && imagesQuery.data.length === 0 && !activeChat?.titleEdited && !activeChat?.titleGeneratedAt;
+    startGeneration(activeChatId, activeModel.id, submittedPrompt, imageInstructions, shouldGenerateTitle);
+  }
+
+  function startGeneration(chatId: string, modelId: string, submittedPrompt: string, instructions: string, shouldGenerateTitle: boolean) {
+    const referencesEnabled = modelSupportsReferenceImages(activeModel);
+    const referenceImages = referencesEnabled ? [...activePinnedImages] : [];
+    const uploaded = [...uploadedReferences];
+    const titleModelId = activeTitleModel?.id;
+    let firstGeneratedImage: NormalizedImageOutput | undefined;
+    void generationCoordinator.start(chatId, async ({ signal, setRunning }) => {
+      const referenceSnapshots = referencesEnabled ? await createReferenceSnapshots(referenceImages, uploaded) : undefined;
+      const references = referenceSnapshots?.map((reference) => reference.dataUrl);
+      const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(activeModel!.providerId, activeModel!.providerModelName);
+      setRunning(estimatedSeconds);
+      firstGeneratedImage = await generateImages(chatId, modelId, { prompt: submittedPrompt, instructions, imageCount, aspectRatio, references, referenceSnapshots }, signal);
+    }).then(async (outcome) => {
+      if (outcome === "succeeded" && shouldGenerateTitle && titleModelId && firstGeneratedImage) {
+        triggerChatTitleGeneration(chatId, titleModelId, firstGeneratedImage);
+      }
+      await refreshChatData(queryClient, chatId);
+    });
   }
 
   function repeatHistoricalPrompt(request: GenerationRequestEntity) {
@@ -370,6 +378,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   async function deleteChat(chatId: string) {
     if (!window.confirm("Diesen Chat mit Nachrichten und Bildern löschen?")) return;
 
+    await generationCoordinator.cancelAndWait(chatId);
     await chatRepository.deleteWithChildren(chatId);
     await refreshChatData(queryClient, chatId);
     await queryClient.invalidateQueries({ queryKey: ["chats"] });
@@ -419,10 +428,9 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     }
   }
 
-  function triggerChatTitleGeneration(chatId: string, submittedPrompt: string, isFirstPrompt: boolean) {
-    if (!isFirstPrompt || !activeTextModel) return;
-    void generateChatTitle(chatId, activeTextModel.id, submittedPrompt)
-      .catch(() => undefined)
+  function triggerChatTitleGeneration(chatId: string, titleModelId: string, image: NormalizedImageOutput) {
+    void generateChatTitle(chatId, titleModelId, image)
+      .catch((error) => console.error("Automatische Chat-Benennung fehlgeschlagen.", error))
       .finally(() => void queryClient.invalidateQueries({ queryKey: ["chats"] }));
   }
 
@@ -616,38 +624,6 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     event.stopPropagation();
   }
 
-  function startGenerationProgress(estimatedSeconds: number) {
-    stopGenerationProgress();
-    const estimatedMs = Math.max(estimatedSeconds, 1) * 1000;
-    const startedAt = Date.now();
-    setGenerationProgressPercent(0);
-    generationProgressTimerRef.current = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt;
-      const nextPercent = Math.min(maxAutoProgressPercent, (elapsed / estimatedMs) * 100);
-      setGenerationProgressPercent(nextPercent);
-    }, progressTickMs);
-  }
-
-  function finishGenerationProgress() {
-    stopGenerationProgress();
-    setGenerationProgressPercent(100);
-    generationProgressTimerRef.current = window.setTimeout(() => {
-      generationProgressTimerRef.current = undefined;
-      setGenerationProgressPercent(0);
-    }, progressResetDelayMs);
-  }
-
-  function cancelGenerationProgress() {
-    stopGenerationProgress();
-    setGenerationProgressPercent(0);
-  }
-
-  function stopGenerationProgress() {
-    if (generationProgressTimerRef.current === undefined) return;
-    window.clearInterval(generationProgressTimerRef.current);
-    generationProgressTimerRef.current = undefined;
-  }
-
   async function requestScreenWakeLock() {
     if (typeof window === "undefined" || typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
     if (!window.isSecureContext || document.visibilityState !== "visible") return;
@@ -752,10 +728,10 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
             canGenerate={Boolean(isOnline && hasMinimumModelConfig && prompt.trim())}
             isGenerating={isGenerating}
             generationProgressPercent={generationProgressPercent}
-            error={generateMutation.error?.message ?? initialGenerationError}
+            error={generationJob?.error ?? initialGenerationError}
             onDismissError={() => {
               setInitialGenerationError(undefined);
-              generateMutation.reset();
+              generationCoordinator.dismiss(activeChatId!);
             }}
             connectivityNotice={isOnline ? undefined : "Bildgenerierung benötigt eine Verbindung zum Anbieter."}
             messages={messagesQuery.data ?? []}
@@ -766,6 +742,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
             pinnedImageCount={pinnedImages.length}
             scrollToEndRequest={pinnedNavigationEndRequest}
             onGenerate={submitPrompt}
+            onCancel={() => generationCoordinator.cancel(activeChatId!)}
             onOpenConfig={openConfigPanel}
             onDeleteMessage={deleteMessage}
             onRepeatPrompt={repeatHistoricalPrompt}
