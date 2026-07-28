@@ -1,23 +1,65 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { Menu } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type TouchEvent } from "react";
-import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import type { ChatEntity, GenerationRequestEntity, ImageEntity, JsonValue, MessageEntity, ThemeMode } from "../db/entities";
+import { useTranslation } from "react-i18next";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type TouchEvent,
+} from "react";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
+import type {
+  ChatEntity,
+  GenerationRequestEntity,
+  ImageEntity,
+  JsonValue,
+  MessageEntity,
+  ThemeMode,
+} from "../db/entities";
 import { createClientId } from "../db/id";
 import { appOptionsRepository } from "../db/repositories/appOptionsRepository";
-import { chatRepository, getLastChangedAt, type ChatAspectRatio, type ChatUploadedReference } from "../db/repositories/chatRepository";
+import {
+  chatRepository,
+  getLastChangedAt,
+  type ChatAspectRatio,
+  type ChatUploadedReference,
+} from "../db/repositories/chatRepository";
 import { generationRepository } from "../db/repositories/generationRepository";
 import { imageRepository } from "../db/repositories/imageRepository";
 import { messageRepository } from "../db/repositories/messageRepository";
 import { modelLoadEstimateRepository } from "../db/repositories/modelLoadEstimateRepository";
 import { providerConfigRepository } from "../db/repositories/providerConfigRepository";
-import { listUsableModels, modelSupportsImageInput, modelSupportsReferenceImages, selectDefaultImageModel } from "../features/generation/models/registry";
+import {
+  listUsableModels,
+  modelSupportsImageInput,
+  modelSupportsReferenceImages,
+  selectDefaultImageModel,
+} from "../features/generation/models/registry";
 import type { NormalizedImageOutput } from "../features/generation/providers/types";
 import { generateChatTitle } from "../features/generation/services/chatTitleService";
 import { generateImages } from "../features/generation/services/generationService";
 import { generationCoordinator } from "../features/generation/services/generationCoordinator";
-import { applyTheme, closePanels, createReferenceSnapshots, fileToDataUrl, readChatNavOpenState, refreshChatData, type StoredReference, type UploadedReference } from "./appHelpers";
+import { normalizeLanguage } from "../i18n/language";
+import {
+  applyTheme,
+  closePanels,
+  createReferenceSnapshots,
+  fileToDataUrl,
+  readChatNavOpenState,
+  refreshChatData,
+  type StoredReference,
+  type UploadedReference,
+} from "./appHelpers";
 import { ChatNavigation } from "./components/ChatNavigation";
 import { ConfigPanel } from "./components/ConfigPanel";
 import { ImageOverlay } from "./components/ImageOverlay";
@@ -37,13 +79,17 @@ export function App() {
       <Route path="/" element={<WorkspaceRoute />} />
       <Route path="/options" element={<WorkspaceRoute mode="options" />} />
       <Route path="/chats/:chatId" element={<WorkspaceRoute />} />
-      <Route path="/chats/:chatId/config" element={<WorkspaceRoute configOpen />} />
+      <Route
+        path="/chats/:chatId/config"
+        element={<WorkspaceRoute configOpen />}
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
 function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { chatId } = useParams();
@@ -55,64 +101,121 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   const [imageCount, setImageCount] = useState(1);
   const [aspectRatio, setAspectRatio] = useState<ChatAspectRatio>("portrait");
   const [overlayImageId, setOverlayImageId] = useState<string>();
-  const [pinnedNavigationImageId, setPinnedNavigationImageId] = useState<string>();
-  const [pinnedNavigationEndRequest, setPinnedNavigationEndRequest] = useState(0);
-  const [uploadedReferences, setUploadedReferences] = useState<UploadedReference[]>([]);
-  const [referenceMode, setReferenceMode] = useState<"default" | "restored">("default");
+  const [pinnedNavigationImageId, setPinnedNavigationImageId] =
+    useState<string>();
+  const [pinnedNavigationEndRequest, setPinnedNavigationEndRequest] =
+    useState(0);
+  const [uploadedReferences, setUploadedReferences] = useState<
+    UploadedReference[]
+  >([]);
+  const [referenceMode, setReferenceMode] = useState<"default" | "restored">(
+    "default",
+  );
   const [activeImageModelId, setActiveImageModelId] = useState<string>();
-  const [initialGenerationError, setInitialGenerationError] = useState<string>();
-  const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
+  const [initialGenerationError, setInitialGenerationError] =
+    useState<string>();
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
   const [, setGenerationVersion] = useState(0);
   const [generationProgressPercent, setGenerationProgressPercent] = useState(0);
   const [leftDragging, setLeftDragging] = useState(false);
   const [settingsReadyChatId, setSettingsReadyChatId] = useState<string>();
-  const navSwipeStartRef = useRef<{ x: number; y: number; pointerId: number; dragging: boolean } | undefined>(undefined);
-  const touchSwipeStartRef = useRef<{ x: number; y: number; dragging: boolean } | undefined>(undefined);
+  const navSwipeStartRef = useRef<
+    { x: number; y: number; pointerId: number; dragging: boolean } | undefined
+  >(undefined);
+  const touchSwipeStartRef = useRef<
+    { x: number; y: number; dragging: boolean } | undefined
+  >(undefined);
   const suppressNextClickRef = useRef(false);
   const generationProgressTimerRef = useRef<number | undefined>(undefined);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const promptPersistTimerRef = useRef<number | undefined>(undefined);
   const isCreatingDefaultChatRef = useRef(false);
 
-  const chatsQuery = useQuery({ queryKey: ["chats"], queryFn: chatRepository.list });
-  const providerConfigsQuery = useQuery({ queryKey: ["providerConfigs"], queryFn: providerConfigRepository.list });
-  const themeQuery = useQuery({ queryKey: ["theme"], queryFn: () => appOptionsRepository.getTheme() });
-  const defaultImageModelIdQuery = useQuery({ queryKey: ["defaultImageModelId"], queryFn: () => appOptionsRepository.getDefaultImageModelId() });
+  const chatsQuery = useQuery({
+    queryKey: ["chats"],
+    queryFn: chatRepository.list,
+  });
+  const providerConfigsQuery = useQuery({
+    queryKey: ["providerConfigs"],
+    queryFn: providerConfigRepository.list,
+  });
+  const themeQuery = useQuery({
+    queryKey: ["theme"],
+    queryFn: () => appOptionsRepository.getTheme(),
+  });
+  const defaultImageModelIdQuery = useQuery({
+    queryKey: ["defaultImageModelId"],
+    queryFn: () => appOptionsRepository.getDefaultImageModelId(),
+  });
   const activeChatId = chatId;
   const showOptions = props.mode === "options";
   const rightOpen = Boolean(props.configOpen);
-  const activeChat = useMemo(() => chatsQuery.data?.find((chat) => chat.id === activeChatId), [activeChatId, chatsQuery.data]);
+  const activeChat = useMemo(
+    () => chatsQuery.data?.find((chat) => chat.id === activeChatId),
+    [activeChatId, chatsQuery.data],
+  );
   const generationJob = generationCoordinator.get(activeChatId);
   const hasActiveGenerationJobs = generationCoordinator.hasActiveJobs();
   const messagesQuery = useQuery({
     queryKey: ["messages", activeChatId],
     queryFn: () => messageRepository.listByChat(activeChatId!),
-    enabled: Boolean(activeChatId)
+    enabled: Boolean(activeChatId),
   });
   const imagesQuery = useQuery({
     queryKey: ["images", activeChatId],
     queryFn: () => imageRepository.listByChat(activeChatId!),
-    enabled: Boolean(activeChatId)
+    enabled: Boolean(activeChatId),
   });
   const generationRequestsQuery = useQuery({
     queryKey: ["generationRequests", activeChatId],
     queryFn: () => generationRepository.listRequestsByChat(activeChatId!),
-    enabled: Boolean(activeChatId)
+    enabled: Boolean(activeChatId),
   });
 
-  const usableImageModels = useMemo(() => listUsableModels(["image", "image-edit"], providerConfigsQuery.data ?? []), [providerConfigsQuery.data]);
-  const defaultImageModel = useMemo(() => selectDefaultImageModel(usableImageModels, defaultImageModelIdQuery.data), [defaultImageModelIdQuery.data, usableImageModels]);
+  const usableImageModels = useMemo(
+    () =>
+      listUsableModels(
+        ["image", "image-edit"],
+        providerConfigsQuery.data ?? [],
+      ),
+    [providerConfigsQuery.data],
+  );
+  const defaultImageModel = useMemo(
+    () =>
+      selectDefaultImageModel(usableImageModels, defaultImageModelIdQuery.data),
+    [defaultImageModelIdQuery.data, usableImageModels],
+  );
   const selectedImageModelId = activeImageModelId ?? defaultImageModel?.id;
-  const activeModel = useMemo(() => usableImageModels.find((model) => model.id === selectedImageModelId) ?? usableImageModels[0], [selectedImageModelId, usableImageModels]);
-  const activeTitleModel = useMemo(() => listUsableModels(["text"], providerConfigsQuery.data ?? []).find(modelSupportsImageInput), [providerConfigsQuery.data]);
+  const activeModel = useMemo(
+    () =>
+      usableImageModels.find((model) => model.id === selectedImageModelId) ??
+      usableImageModels[0],
+    [selectedImageModelId, usableImageModels],
+  );
+  const activeTitleModel = useMemo(
+    () =>
+      listUsableModels(["text"], providerConfigsQuery.data ?? []).find(
+        modelSupportsImageInput,
+      ),
+    [providerConfigsQuery.data],
+  );
   const hasMinimumModelConfig = Boolean(activeModel && activeTitleModel);
-  const overlayImage = useMemo(() => imagesQuery.data?.find((image) => image.id === overlayImageId), [imagesQuery.data, overlayImageId]);
-  const pinnedImages = useMemo(() => (imagesQuery.data ?? []).filter((image) => image.pinned), [imagesQuery.data]);
+  const overlayImage = useMemo(
+    () => imagesQuery.data?.find((image) => image.id === overlayImageId),
+    [imagesQuery.data, overlayImageId],
+  );
+  const pinnedImages = useMemo(
+    () => (imagesQuery.data ?? []).filter((image) => image.pinned),
+    [imagesQuery.data],
+  );
   const activePinnedImages = referenceMode === "restored" ? [] : pinnedImages;
   const imageInstructions = readImageInstructions(activeChat);
 
   const createChatMutation = useMutation({
-    mutationFn: () => chatRepository.create("Neue Sitzung", defaultImageModel?.id),
+    mutationFn: () =>
+      chatRepository.create(t("navigation.newSession"), defaultImageModel?.id),
     onMutate: () => {
       clearReferenceSelection();
       setInitialGenerationError(undefined);
@@ -122,12 +225,29 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       setLeftOpen(false);
       setPrompt("");
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
-    }
+    },
   });
 
   const createChatFromImageMutation = useMutation({
-    mutationFn: async ({ image, request, message }: { image: ImageEntity; request: GenerationRequestEntity; message: MessageEntity }) =>
-      chatRepository.createFromImage(getHistoricalChatSettings(request), { role: message.role, content: message.content, metadata: message.metadata }, image),
+    mutationFn: async ({
+      image,
+      request,
+      message,
+    }: {
+      image: ImageEntity;
+      request: GenerationRequestEntity;
+      message: MessageEntity;
+    }) =>
+      chatRepository.createFromImage(
+        t("navigation.newSession"),
+        getHistoricalChatSettings(request),
+        {
+          role: message.role,
+          content: message.content,
+          metadata: message.metadata,
+        },
+        image,
+      ),
     onSuccess: async (chat) => {
       setInitialGenerationError(undefined);
       navigate(`/chats/${chat.id}`);
@@ -135,14 +255,25 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
     },
     onError: (error) => {
-      setInitialGenerationError(`Neuer Chat konnte nicht erstellt werden: ${errorToMessage(error, "Unbekannter Fehler.")}`);
-    }
+      setInitialGenerationError(
+        t("dialogs.newChatError", {
+          error: errorToMessage(error, t("errors.unknown")),
+        }),
+      );
+    },
   });
 
-  const isGenerating = generationJob?.phase === "preparing" || generationJob?.phase === "running" || generationJob?.phase === "cancelling";
+  const isGenerating =
+    generationJob?.phase === "preparing" ||
+    generationJob?.phase === "running" ||
+    generationJob?.phase === "cancelling";
 
   useEffect(() => {
-    if (!activeImageModelId || usableImageModels.some((model) => model.id === activeImageModelId)) return;
+    if (
+      !activeImageModelId ||
+      usableImageModels.some((model) => model.id === activeImageModelId)
+    )
+      return;
     setActiveImageModelId(undefined);
   }, [activeImageModelId, usableImageModels]);
 
@@ -168,13 +299,24 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
     if (isCreatingDefaultChatRef.current) return;
     isCreatingDefaultChatRef.current = true;
-    void chatRepository.create("Neue Sitzung", defaultImageModel?.id).then((chat) => {
-      navigate(`/chats/${chat.id}`, { replace: true });
-      void queryClient.invalidateQueries({ queryKey: ["chats"] });
-    }).finally(() => {
-      isCreatingDefaultChatRef.current = false;
-    });
-  }, [activeChatId, chatsQuery.data, chatsQuery.isFetched, defaultImageModel?.id, navigate, queryClient, showOptions]);
+    void chatRepository
+      .create(t("navigation.newSession"), defaultImageModel?.id)
+      .then((chat) => {
+        navigate(`/chats/${chat.id}`, { replace: true });
+        void queryClient.invalidateQueries({ queryKey: ["chats"] });
+      })
+      .finally(() => {
+        isCreatingDefaultChatRef.current = false;
+      });
+  }, [
+    activeChatId,
+    chatsQuery.data,
+    chatsQuery.isFetched,
+    defaultImageModel?.id,
+    navigate,
+    queryClient,
+    showOptions,
+  ]);
 
   useEffect(() => {
     if (showOptions) setLeftOpen(false);
@@ -195,12 +337,24 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (!providerConfigsQuery.isSuccess || hasMinimumModelConfig || showOptions) return;
+    if (!providerConfigsQuery.isSuccess || hasMinimumModelConfig || showOptions)
+      return;
     setLeftOpen(false);
     navigate("/options", { replace: true });
-  }, [hasMinimumModelConfig, navigate, providerConfigsQuery.isSuccess, showOptions]);
+  }, [
+    hasMinimumModelConfig,
+    navigate,
+    providerConfigsQuery.isSuccess,
+    showOptions,
+  ]);
 
-  useEffect(() => generationCoordinator.subscribe(() => setGenerationVersion((version) => version + 1)), []);
+  useEffect(
+    () =>
+      generationCoordinator.subscribe(() =>
+        setGenerationVersion((version) => version + 1),
+      ),
+    [],
+  );
 
   useEffect(() => {
     if (hasActiveGenerationJobs) {
@@ -228,28 +382,47 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   }, [isGenerating]);
 
   useEffect(() => {
-    if (generationProgressTimerRef.current !== undefined) window.clearInterval(generationProgressTimerRef.current);
-    if (!generationJob || generationJob.phase === "preparing" || !generationJob.startedAt || !generationJob.estimatedSeconds) {
-      setGenerationProgressPercent(generationJob?.phase === "succeeded" ? 100 : 0);
+    if (generationProgressTimerRef.current !== undefined)
+      window.clearInterval(generationProgressTimerRef.current);
+    if (
+      !generationJob ||
+      generationJob.phase === "preparing" ||
+      !generationJob.startedAt ||
+      !generationJob.estimatedSeconds
+    ) {
+      setGenerationProgressPercent(
+        generationJob?.phase === "succeeded" ? 100 : 0,
+      );
       return;
     }
 
     const update = () => {
       const elapsed = Date.now() - generationJob.startedAt!;
-      setGenerationProgressPercent(Math.min(maxAutoProgressPercent, (elapsed / (generationJob.estimatedSeconds! * 1000)) * 100));
+      setGenerationProgressPercent(
+        Math.min(
+          maxAutoProgressPercent,
+          (elapsed / (generationJob.estimatedSeconds! * 1000)) * 100,
+        ),
+      );
     };
     update();
     generationProgressTimerRef.current = window.setInterval(update, 100);
     return () => {
-      if (generationProgressTimerRef.current !== undefined) window.clearInterval(generationProgressTimerRef.current);
+      if (generationProgressTimerRef.current !== undefined)
+        window.clearInterval(generationProgressTimerRef.current);
     };
-  }, [generationJob?.chatId, generationJob?.phase, generationJob?.startedAt, generationJob?.estimatedSeconds]);
+  }, [
+    generationJob?.chatId,
+    generationJob?.phase,
+    generationJob?.startedAt,
+    generationJob?.estimatedSeconds,
+  ]);
 
   useEffect(
     () => () => {
       void releaseScreenWakeLock();
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -278,22 +451,34 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
         (settings.uploadedReferences ?? []).map((reference) => ({
           id: createClientId(),
           name: reference.name,
-          dataUrl: reference.dataUrl
-        }))
+          dataUrl: reference.dataUrl,
+        })),
       );
       setReferenceMode("default");
-      setActiveImageModelId(settings.activeImageModelId ?? (defaultImageModelIdQuery.data ? defaultImageModel?.id : usableImageModels[0]?.id));
+      setActiveImageModelId(
+        settings.activeImageModelId ??
+          (defaultImageModelIdQuery.data
+            ? defaultImageModel?.id
+            : usableImageModels[0]?.id),
+      );
       setSettingsReadyChatId(activeChatId);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [activeChatId, defaultImageModel?.id, defaultImageModelIdQuery.data, showOptions, usableImageModels]);
+  }, [
+    activeChatId,
+    defaultImageModel?.id,
+    defaultImageModelIdQuery.data,
+    showOptions,
+    usableImageModels,
+  ]);
 
   useEffect(() => {
     if (!activeChatId || settingsReadyChatId !== activeChatId) return;
-    if (promptPersistTimerRef.current !== undefined) window.clearTimeout(promptPersistTimerRef.current);
+    if (promptPersistTimerRef.current !== undefined)
+      window.clearTimeout(promptPersistTimerRef.current);
 
     promptPersistTimerRef.current = window.setTimeout(() => {
       promptPersistTimerRef.current = undefined;
@@ -303,9 +488,10 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
   useEffect(
     () => () => {
-      if (promptPersistTimerRef.current !== undefined) window.clearTimeout(promptPersistTimerRef.current);
+      if (promptPersistTimerRef.current !== undefined)
+        window.clearTimeout(promptPersistTimerRef.current);
     },
-    []
+    [],
   );
 
   async function submitPrompt() {
@@ -316,34 +502,90 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
     if (!activeChatId) {
       clearReferenceSelection();
-      const chat = await chatRepository.create("Neue Sitzung", defaultImageModel?.id);
+      const chat = await chatRepository.create(
+        t("navigation.newSession"),
+        defaultImageModel?.id,
+      );
       navigate(`/chats/${chat.id}`);
       await queryClient.invalidateQueries({ queryKey: ["chats"] });
       startGeneration(chat.id, activeModel.id, submittedPrompt, "", true);
       return;
     }
-    const shouldGenerateTitle = imagesQuery.isSuccess && imagesQuery.data.length === 0 && !activeChat?.titleEdited && !activeChat?.titleGeneratedAt;
-    startGeneration(activeChatId, activeModel.id, submittedPrompt, imageInstructions, shouldGenerateTitle);
+    const shouldGenerateTitle =
+      imagesQuery.isSuccess &&
+      imagesQuery.data.length === 0 &&
+      !activeChat?.titleEdited &&
+      !activeChat?.titleGeneratedAt;
+    startGeneration(
+      activeChatId,
+      activeModel.id,
+      submittedPrompt,
+      imageInstructions,
+      shouldGenerateTitle,
+    );
   }
 
-  function startGeneration(chatId: string, modelId: string, submittedPrompt: string, instructions: string, shouldGenerateTitle: boolean) {
+  function startGeneration(
+    chatId: string,
+    modelId: string,
+    submittedPrompt: string,
+    instructions: string,
+    shouldGenerateTitle: boolean,
+  ) {
+    const titleLanguage = normalizeLanguage(i18n.language) ?? "en";
     const referencesEnabled = modelSupportsReferenceImages(activeModel);
     const referenceImages = referencesEnabled ? [...activePinnedImages] : [];
     const uploaded = [...uploadedReferences];
     const titleModelId = activeTitleModel?.id;
     let firstGeneratedImage: NormalizedImageOutput | undefined;
-    void generationCoordinator.start(chatId, async ({ signal, setRunning }) => {
-      const referenceSnapshots = referencesEnabled ? await createReferenceSnapshots(referenceImages, uploaded) : undefined;
-      const references = referenceSnapshots?.map((reference) => reference.dataUrl);
-      const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(activeModel!.providerId, activeModel!.providerModelName);
-      setRunning(estimatedSeconds);
-      firstGeneratedImage = await generateImages(chatId, modelId, { prompt: submittedPrompt, instructions, imageCount, aspectRatio, references, referenceSnapshots }, signal);
-    }).then(async (outcome) => {
-      if (outcome === "succeeded" && shouldGenerateTitle && titleModelId && firstGeneratedImage) {
-        triggerChatTitleGeneration(chatId, titleModelId, firstGeneratedImage);
-      }
-      await refreshChatData(queryClient, chatId);
-    });
+    void generationCoordinator
+      .start(chatId, async ({ signal, setRunning }) => {
+        const referenceSnapshots = referencesEnabled
+          ? await createReferenceSnapshots(
+              referenceImages,
+              uploaded,
+              t("errors.fileRead"),
+            )
+          : undefined;
+        const references = referenceSnapshots?.map(
+          (reference) => reference.dataUrl,
+        );
+        const estimatedSeconds =
+          await modelLoadEstimateRepository.getEstimatedSeconds(
+            activeModel!.providerId,
+            activeModel!.providerModelName,
+          );
+        setRunning(estimatedSeconds);
+        firstGeneratedImage = await generateImages(
+          chatId,
+          modelId,
+          {
+            prompt: submittedPrompt,
+            instructions,
+            imageCount,
+            aspectRatio,
+            references,
+            referenceSnapshots,
+          },
+          signal,
+        );
+      })
+      .then(async (outcome) => {
+        if (
+          outcome === "succeeded" &&
+          shouldGenerateTitle &&
+          titleModelId &&
+          firstGeneratedImage
+        ) {
+          triggerChatTitleGeneration(
+            chatId,
+            titleModelId,
+            firstGeneratedImage,
+            titleLanguage,
+          );
+        }
+        await refreshChatData(queryClient, chatId);
+      });
   }
 
   function repeatHistoricalPrompt(request: GenerationRequestEntity) {
@@ -355,28 +597,37 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   }
 
   function createChatFromImage(image: ImageEntity) {
-    const request = generationRequestsQuery.data?.find((entry) => entry.id === image.requestId);
-    const message = messagesQuery.data?.find((entry) => entry.id === image.messageId);
+    const request = generationRequestsQuery.data?.find(
+      (entry) => entry.id === image.requestId,
+    );
+    const message = messagesQuery.data?.find(
+      (entry) => entry.id === image.messageId,
+    );
     if (!request || !message) {
-      setInitialGenerationError("Die historischen Einstellungen für dieses Bild sind nicht verfügbar.");
+      setInitialGenerationError(t("dialogs.historicalSettings"));
       return;
     }
     createChatFromImageMutation.mutate({ image, request, message });
   }
 
   async function deleteMessage(messageId: string) {
-    const confirmed = window.confirm("Diese Nachricht mit allen zugehörigen Bildern löschen?");
+    const confirmed = window.confirm(t("dialogs.deleteMessage"));
     if (!confirmed) return;
 
     await messageRepository.deleteWithImages(messageId);
-    if (overlayImageId && !imagesQuery.data?.some((image) => image.id === overlayImageId && image.messageId !== messageId)) {
+    if (
+      overlayImageId &&
+      !imagesQuery.data?.some(
+        (image) => image.id === overlayImageId && image.messageId !== messageId,
+      )
+    ) {
       setOverlayImageId(undefined);
     }
     await refreshChatData(queryClient, activeChatId);
   }
 
   async function deleteChat(chatId: string) {
-    if (!window.confirm("Diesen Chat mit Nachrichten und Bildern löschen?")) return;
+    if (!window.confirm(t("dialogs.deleteChat"))) return;
 
     await generationCoordinator.cancelAndWait(chatId);
     await chatRepository.deleteWithChildren(chatId);
@@ -386,16 +637,22 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   }
 
   function applyHistoricalGenerationSettings(request: GenerationRequestEntity) {
-    const model = usableImageModels.find((entry) => entry.id === request.modelId);
+    const model = usableImageModels.find(
+      (entry) => entry.id === request.modelId,
+    );
     if (model) {
       setActiveImageModelId(model.id);
     }
 
     const parameters = request.parameters ?? {};
-    if (isValidImageCount(parameters.imageCount)) setImageCount(parameters.imageCount);
-    if (isValidAspectRatio(parameters.aspectRatio)) setAspectRatio(parameters.aspectRatio);
+    if (isValidImageCount(parameters.imageCount))
+      setImageCount(parameters.imageCount);
+    if (isValidAspectRatio(parameters.aspectRatio))
+      setAspectRatio(parameters.aspectRatio);
     if (activeChatId && typeof parameters.imageInstructions === "string") {
-      void chatRepository.updateImageInstructions(activeChatId, parameters.imageInstructions).then(() => queryClient.invalidateQueries({ queryKey: ["chats"] }));
+      void chatRepository
+        .updateImageInstructions(activeChatId, parameters.imageInstructions)
+        .then(() => queryClient.invalidateQueries({ queryKey: ["chats"] }));
     }
 
     const references = readStoredReferences(parameters.references);
@@ -403,17 +660,27 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       setReferenceMode("restored");
       const nextReferences = references.map((reference, index) => ({
         id: createClientId(),
-        name: reference.type === "uploaded" ? reference.name : `Referenzbild ${index + 1}`,
-        dataUrl: reference.dataUrl
+        name:
+          reference.type === "uploaded"
+            ? reference.name
+            : `${t("config.referenceImage")} ${index + 1}`,
+        dataUrl: reference.dataUrl,
       }));
       setUploadedReferences(nextReferences);
       if (activeChatId) {
         void chatRepository.updateSettings(activeChatId, {
           activeImageModelId: model?.id,
-          imageCount: isValidImageCount(parameters.imageCount) ? parameters.imageCount : undefined,
-          aspectRatio: isValidAspectRatio(parameters.aspectRatio) ? parameters.aspectRatio : undefined,
+          imageCount: isValidImageCount(parameters.imageCount)
+            ? parameters.imageCount
+            : undefined,
+          aspectRatio: isValidAspectRatio(parameters.aspectRatio)
+            ? parameters.aspectRatio
+            : undefined,
           uploadedReferences: toChatUploadedReferences(nextReferences),
-          imageInstructions: typeof parameters.imageInstructions === "string" ? parameters.imageInstructions : undefined
+          imageInstructions:
+            typeof parameters.imageInstructions === "string"
+              ? parameters.imageInstructions
+              : undefined,
         });
       }
       return;
@@ -422,16 +689,27 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     if (activeChatId) {
       void chatRepository.updateSettings(activeChatId, {
         activeImageModelId: model?.id,
-        imageCount: isValidImageCount(parameters.imageCount) ? parameters.imageCount : undefined,
-        aspectRatio: isValidAspectRatio(parameters.aspectRatio) ? parameters.aspectRatio : undefined
+        imageCount: isValidImageCount(parameters.imageCount)
+          ? parameters.imageCount
+          : undefined,
+        aspectRatio: isValidAspectRatio(parameters.aspectRatio)
+          ? parameters.aspectRatio
+          : undefined,
       });
     }
   }
 
-  function triggerChatTitleGeneration(chatId: string, titleModelId: string, image: NormalizedImageOutput) {
-    void generateChatTitle(chatId, titleModelId, image)
-      .catch((error) => console.error("Automatische Chat-Benennung fehlgeschlagen.", error))
-      .finally(() => void queryClient.invalidateQueries({ queryKey: ["chats"] }));
+  function triggerChatTitleGeneration(
+    chatId: string,
+    titleModelId: string,
+    image: NormalizedImageOutput,
+    language: "de" | "en",
+  ) {
+    void generateChatTitle(chatId, titleModelId, image, language)
+      .catch((error) => console.error("Automatic chat naming failed.", error))
+      .finally(
+        () => void queryClient.invalidateQueries({ queryKey: ["chats"] }),
+      );
   }
 
   function toggleLeftPanel() {
@@ -466,10 +744,13 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     const images = imagesQuery.data ?? [];
     if (!overlayImageId || images.length < 2) return;
 
-    const currentIndex = images.findIndex((image) => image.id === overlayImageId);
+    const currentIndex = images.findIndex(
+      (image) => image.id === overlayImageId,
+    );
     if (currentIndex === -1) return;
 
-    const nextIndex = (currentIndex + direction + images.length) % images.length;
+    const nextIndex =
+      (currentIndex + direction + images.length) % images.length;
     setOverlayImageId(images[nextIndex].id);
   }
 
@@ -477,7 +758,9 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     if (pinnedImages.length === 0) return;
 
     const currentImageId = overlayImageId ?? pinnedNavigationImageId;
-    const currentIndex = pinnedImages.findIndex((image) => image.id === currentImageId);
+    const currentIndex = pinnedImages.findIndex(
+      (image) => image.id === currentImageId,
+    );
     if (currentIndex === pinnedImages.length - 1) {
       setPinnedNavigationImageId(undefined);
       setPinnedNavigationEndRequest((request) => request + 1);
@@ -490,21 +773,40 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
   function handleShellPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
-    if (!event.isPrimary || overlayImageId || !window.matchMedia("(max-width: 859.98px)").matches) return;
+    if (
+      !event.isPrimary ||
+      overlayImageId ||
+      !window.matchMedia("(max-width: 859.98px)").matches
+    )
+      return;
     if (isInteractiveSwipeTarget(event.target)) return;
     if (!leftOpen && event.clientX > navSwipeEdgeWidth) return;
 
     event.currentTarget.setPointerCapture(event.pointerId);
-    navSwipeStartRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId, dragging: false };
+    navSwipeStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      pointerId: event.pointerId,
+      dragging: false,
+    };
   }
 
   function handleShellTouchStart(event: TouchEvent<HTMLDivElement>) {
-    if (event.touches.length !== 1 || overlayImageId || !window.matchMedia("(max-width: 859.98px)").matches) return;
+    if (
+      event.touches.length !== 1 ||
+      overlayImageId ||
+      !window.matchMedia("(max-width: 859.98px)").matches
+    )
+      return;
     if (isInteractiveSwipeTarget(event.target)) return;
 
     const touch = event.touches[0];
     if (!leftOpen && touch.clientX > navSwipeEdgeWidth) return;
-    touchSwipeStartRef.current = { x: touch.clientX, y: touch.clientY, dragging: false };
+    touchSwipeStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      dragging: false,
+    };
   }
 
   function handleShellPointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -518,7 +820,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     const touch = event.touches[0];
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
-    if (!start.dragging && Math.abs(deltaX) < navSwipeDragStartThreshold) return;
+    if (!start.dragging && Math.abs(deltaX) < navSwipeDragStartThreshold)
+      return;
     if (!start.dragging && Math.abs(deltaX) < Math.abs(deltaY)) {
       touchSwipeStartRef.current = undefined;
       return;
@@ -528,19 +831,28 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     start.dragging = true;
     suppressNextClickRef.current = true;
     const maxOffset = Math.min(window.innerWidth * 0.86, 320) * 1.04;
-    const offset = leftOpen ? Math.min(Math.max(deltaX, -maxOffset), 0) : Math.max(Math.min(deltaX, maxOffset), 0);
-    const backdropProgress = leftOpen ? 1 - Math.abs(offset) / maxOffset : offset / maxOffset;
+    const offset = leftOpen
+      ? Math.min(Math.max(deltaX, -maxOffset), 0)
+      : Math.max(Math.min(deltaX, maxOffset), 0);
+    const backdropProgress = leftOpen
+      ? 1 - Math.abs(offset) / maxOffset
+      : offset / maxOffset;
     setLeftDragging(true);
     event.currentTarget.classList.add("nav-dragging");
     event.currentTarget.style.setProperty("--chat-nav-drag-x", `${offset}px`);
-    event.currentTarget.style.setProperty("--chat-nav-backdrop-progress", String(Math.max(0, Math.min(backdropProgress, 1))));
+    event.currentTarget.style.setProperty(
+      "--chat-nav-backdrop-progress",
+      String(Math.max(0, Math.min(backdropProgress, 1))),
+    );
   }
 
   function handleShellPointerUp(event: PointerEvent<HTMLDivElement>) {
     finishNavSwipe(event);
     resetNavDrag(event.currentTarget);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    if (suppressNextClickRef.current) window.setTimeout(() => (suppressNextClickRef.current = false), 0);
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    if (suppressNextClickRef.current)
+      window.setTimeout(() => (suppressNextClickRef.current = false), 0);
   }
 
   function handleShellTouchEnd(event: TouchEvent<HTMLDivElement>) {
@@ -549,7 +861,10 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       const touch = event.changedTouches[0];
       const deltaX = touch.clientX - start.x;
       const deltaY = touch.clientY - start.y;
-      if (Math.abs(deltaX) >= navSwipeThreshold && Math.abs(deltaX) >= Math.abs(deltaY)) {
+      if (
+        Math.abs(deltaX) >= navSwipeThreshold &&
+        Math.abs(deltaX) >= Math.abs(deltaY)
+      ) {
         if (deltaX > navSwipeThreshold) openLeftPanel();
         if (deltaX < -navSwipeThreshold && leftOpen) closeLeftPanel();
       }
@@ -557,7 +872,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
     touchSwipeStartRef.current = undefined;
     resetNavDrag(event.currentTarget);
-    if (suppressNextClickRef.current) window.setTimeout(() => (suppressNextClickRef.current = false), 0);
+    if (suppressNextClickRef.current)
+      window.setTimeout(() => (suppressNextClickRef.current = false), 0);
   }
 
   function updateNavDrag(event: PointerEvent<HTMLDivElement>) {
@@ -566,7 +882,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
-    if (!start.dragging && Math.abs(deltaX) < navSwipeDragStartThreshold) return;
+    if (!start.dragging && Math.abs(deltaX) < navSwipeDragStartThreshold)
+      return;
     if (!start.dragging && Math.abs(deltaX) < Math.abs(deltaY)) {
       resetNavDrag(event.currentTarget);
       return;
@@ -576,12 +893,19 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     start.dragging = true;
     suppressNextClickRef.current = true;
     const maxOffset = Math.min(window.innerWidth * 0.86, 320) * 1.04;
-    const offset = leftOpen ? Math.min(Math.max(deltaX, -maxOffset), 0) : Math.max(Math.min(deltaX, maxOffset), 0);
-    const backdropProgress = leftOpen ? 1 - Math.abs(offset) / maxOffset : offset / maxOffset;
+    const offset = leftOpen
+      ? Math.min(Math.max(deltaX, -maxOffset), 0)
+      : Math.max(Math.min(deltaX, maxOffset), 0);
+    const backdropProgress = leftOpen
+      ? 1 - Math.abs(offset) / maxOffset
+      : offset / maxOffset;
     setLeftDragging(true);
     event.currentTarget.classList.add("nav-dragging");
     event.currentTarget.style.setProperty("--chat-nav-drag-x", `${offset}px`);
-    event.currentTarget.style.setProperty("--chat-nav-backdrop-progress", String(Math.max(0, Math.min(backdropProgress, 1))));
+    event.currentTarget.style.setProperty(
+      "--chat-nav-backdrop-progress",
+      String(Math.max(0, Math.min(backdropProgress, 1))),
+    );
   }
 
   function finishNavSwipe(event: PointerEvent<HTMLDivElement>) {
@@ -590,7 +914,11 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
-    if (Math.abs(deltaX) < navSwipeThreshold || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    if (
+      Math.abs(deltaX) < navSwipeThreshold ||
+      Math.abs(deltaX) < Math.abs(deltaY)
+    )
+      return;
 
     if (deltaX > navSwipeThreshold) openLeftPanel();
     if (deltaX < -navSwipeThreshold && leftOpen) closeLeftPanel();
@@ -599,7 +927,8 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   function handleShellPointerCancel(event: PointerEvent<HTMLDivElement>) {
     resetNavDrag(event.currentTarget);
     suppressNextClickRef.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
   function handleShellTouchCancel(event: TouchEvent<HTMLDivElement>) {
@@ -625,8 +954,14 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   }
 
   async function requestScreenWakeLock() {
-    if (typeof window === "undefined" || typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
-    if (!window.isSecureContext || document.visibilityState !== "visible") return;
+    if (
+      typeof window === "undefined" ||
+      typeof navigator === "undefined" ||
+      !("wakeLock" in navigator)
+    )
+      return;
+    if (!window.isSecureContext || document.visibilityState !== "visible")
+      return;
     if (wakeLockRef.current && !wakeLockRef.current.released) return;
     try {
       const wakeLock = await navigator.wakeLock.request("screen");
@@ -663,7 +998,9 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       onTouchCancel={handleShellTouchCancel}
       onClickCapture={handleShellClickCapture}
     >
-      {!leftOpen && !leftDragging && <div className="nav-edge-swipe-target" aria-hidden="true" />}
+      {!leftOpen && !leftDragging && (
+        <div className="nav-edge-swipe-target" aria-hidden="true" />
+      )}
       <ChatNavigation
         chats={chatsQuery.data ?? []}
         activeChatId={activeChatId}
@@ -684,7 +1021,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       {(leftOpen || leftDragging || rightOpen) && (
         <button
           className="panel-backdrop"
-          aria-label="Overlay schließen"
+          aria-label={t("common.close")}
           onClick={() => {
             closeLeftPanel();
             closePanels(navigate, activeChatId);
@@ -702,7 +1039,11 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       )}
       <main className="workspace">
         <header className="topbar container-xxl p-2">
-          <button className="btn btn-outline-secondary icon-button" aria-label="Chats ein- oder ausblenden" onClick={toggleLeftPanel}>
+          <button
+            className="btn btn-outline-secondary icon-button"
+            aria-label={t("navigation.expand")}
+            onClick={toggleLeftPanel}
+          >
             <Menu size={20} />
           </button>
         </header>
@@ -713,19 +1054,29 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
             theme={themeQuery.data ?? "system"}
             defaultImageModelId={defaultImageModel?.id}
             onDefaultImageModel={async (modelId) => {
-              if (defaultImageModel?.id) await chatRepository.initializeMissingImageModels(defaultImageModel.id);
+              if (defaultImageModel?.id)
+                await chatRepository.initializeMissingImageModels(
+                  defaultImageModel.id,
+                );
               queryClient.setQueryData(["defaultImageModelId"], modelId);
               await appOptionsRepository.set("defaultImageModelId", modelId);
-              await queryClient.invalidateQueries({ queryKey: ["defaultImageModelId"] });
+              await queryClient.invalidateQueries({
+                queryKey: ["defaultImageModelId"],
+              });
             }}
           />
         ) : (
           <WorkspaceView
             sessionId={activeChatId}
-            contentReady={!activeChatId || (messagesQuery.isFetched && imagesQuery.isFetched)}
+            contentReady={
+              !activeChatId ||
+              (messagesQuery.isFetched && imagesQuery.isFetched)
+            }
             prompt={prompt}
             setPrompt={setPrompt}
-            canGenerate={Boolean(isOnline && hasMinimumModelConfig && prompt.trim())}
+            canGenerate={Boolean(
+              isOnline && hasMinimumModelConfig && prompt.trim(),
+            )}
             isGenerating={isGenerating}
             generationProgressPercent={generationProgressPercent}
             error={generationJob?.error ?? initialGenerationError}
@@ -733,7 +1084,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
               setInitialGenerationError(undefined);
               generationCoordinator.dismiss(activeChatId!);
             }}
-            connectivityNotice={isOnline ? undefined : "Bildgenerierung benötigt eine Verbindung zum Anbieter."}
+            connectivityNotice={isOnline ? undefined : t("workspace.offline")}
             messages={messagesQuery.data ?? []}
             images={imagesQuery.data ?? []}
             generationRequests={generationRequestsQuery.data ?? []}
@@ -751,7 +1102,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
             onTogglePinned={async (image) => {
               setReferenceMode("default");
               if (!image.pinned && pinnedImages.length >= 3) {
-                window.alert("Maximal 3 Bilder können angepinnt werden.");
+                window.alert(t("workspace.maxPinned"));
                 return;
               }
               await imageRepository.togglePinned(image.id, !image.pinned);
@@ -776,22 +1127,30 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
           if (!activeChatId) {
             queryClient.setQueryData(["defaultImageModelId"], modelId);
             await appOptionsRepository.set("defaultImageModelId", modelId);
-            await queryClient.invalidateQueries({ queryKey: ["defaultImageModelId"] });
+            await queryClient.invalidateQueries({
+              queryKey: ["defaultImageModelId"],
+            });
             return;
           }
-          await chatRepository.updateSettings(activeChatId, { activeImageModelId: modelId });
+          await chatRepository.updateSettings(activeChatId, {
+            activeImageModelId: modelId,
+          });
           await queryClient.invalidateQueries({ queryKey: ["chats"] });
         }}
         onImageCount={(value) => {
           setImageCount(value);
           if (!activeChatId || settingsReadyChatId !== activeChatId) return;
-          void chatRepository.updateSettings(activeChatId, { imageCount: value });
+          void chatRepository.updateSettings(activeChatId, {
+            imageCount: value,
+          });
         }}
         onAspectRatio={(value) => {
           if (!isValidAspectRatio(value)) return;
           setAspectRatio(value);
           if (!activeChatId || settingsReadyChatId !== activeChatId) return;
-          void chatRepository.updateSettings(activeChatId, { aspectRatio: value });
+          void chatRepository.updateSettings(activeChatId, {
+            aspectRatio: value,
+          });
         }}
         pinnedImages={activePinnedImages}
         uploadedReferences={uploadedReferences}
@@ -804,29 +1163,47 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
             files.map(async (file) => ({
               id: createClientId(),
               name: file.name,
-              dataUrl: await fileToDataUrl(file)
-            }))
+              dataUrl: await fileToDataUrl(file, t("errors.fileRead")),
+            })),
           );
           const nextReferences = [...uploadedReferences, ...mapped].slice(0, 3);
           setUploadedReferences(nextReferences);
           if (!activeChatId || settingsReadyChatId !== activeChatId) return;
-          await chatRepository.updateSettings(activeChatId, { uploadedReferences: toChatUploadedReferences(nextReferences) });
+          await chatRepository.updateSettings(activeChatId, {
+            uploadedReferences: toChatUploadedReferences(nextReferences),
+          });
         }}
         onRemoveUploadedReference={(id) => {
-          const nextReferences = uploadedReferences.filter((entry) => entry.id !== id);
+          const nextReferences = uploadedReferences.filter(
+            (entry) => entry.id !== id,
+          );
           setUploadedReferences(nextReferences);
           if (!activeChatId || settingsReadyChatId !== activeChatId) return;
-          void chatRepository.updateSettings(activeChatId, { uploadedReferences: toChatUploadedReferences(nextReferences) });
+          void chatRepository.updateSettings(activeChatId, {
+            uploadedReferences: toChatUploadedReferences(nextReferences),
+          });
         }}
         onRenameChat={async (title) => {
           if (!activeChatId) return;
           await chatRepository.updateTitle(activeChatId, title);
-          updateCachedChat(queryClient, activeChatId, (chat) => ({ ...chat, title, titleEdited: true, updatedAt: new Date().toISOString() }));
+          updateCachedChat(queryClient, activeChatId, (chat) => ({
+            ...chat,
+            title,
+            titleEdited: true,
+            updatedAt: new Date().toISOString(),
+          }));
         }}
         onSaveImageInstructions={async (instructions) => {
           if (!activeChatId) return;
-          await chatRepository.updateImageInstructions(activeChatId, instructions);
-          updateCachedImageInstructions(queryClient, activeChatId, instructions);
+          await chatRepository.updateImageInstructions(
+            activeChatId,
+            instructions,
+          );
+          updateCachedImageInstructions(
+            queryClient,
+            activeChatId,
+            instructions,
+          );
         }}
       />
     </div>
@@ -835,7 +1212,11 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
 
 function isInteractiveSwipeTarget(target: EventTarget) {
   if (!(target instanceof Element)) return false;
-  return Boolean(target.closest('a, button, input, textarea, select, [contenteditable="true"]'));
+  return Boolean(
+    target.closest(
+      'a, button, input, textarea, select, [contenteditable="true"]',
+    ),
+  );
 }
 
 function readImageInstructions(chat?: ChatEntity): string {
@@ -843,15 +1224,27 @@ function readImageInstructions(chat?: ChatEntity): string {
   return typeof value === "string" ? value : "";
 }
 
-function updateCachedChat(queryClient: QueryClient, chatId: string, updateChat: (chat: ChatEntity) => ChatEntity) {
+function updateCachedChat(
+  queryClient: QueryClient,
+  chatId: string,
+  updateChat: (chat: ChatEntity) => ChatEntity,
+) {
   queryClient.setQueryData<ChatEntity[]>(["chats"], (chats) => {
     if (!chats) return chats;
-    return chats.map((chat) => (chat.id === chatId ? updateChat(chat) : chat)).sort((left, right) => getLastChangedAt(right).localeCompare(getLastChangedAt(left)));
+    return chats
+      .map((chat) => (chat.id === chatId ? updateChat(chat) : chat))
+      .sort((left, right) =>
+        getLastChangedAt(right).localeCompare(getLastChangedAt(left)),
+      );
   });
 }
 
-function toChatUploadedReferences(references: UploadedReference[]): ChatUploadedReference[] {
-  return references.slice(0, 3).map((reference) => ({ name: reference.name, dataUrl: reference.dataUrl }));
+function toChatUploadedReferences(
+  references: UploadedReference[],
+): ChatUploadedReference[] {
+  return references
+    .slice(0, 3)
+    .map((reference) => ({ name: reference.name, dataUrl: reference.dataUrl }));
 }
 
 function getHistoricalChatSettings(request: GenerationRequestEntity) {
@@ -859,13 +1252,24 @@ function getHistoricalChatSettings(request: GenerationRequestEntity) {
   return {
     promptDraft: request.prompt,
     activeImageModelId: request.modelId,
-    imageCount: isValidImageCount(parameters.imageCount) ? parameters.imageCount : undefined,
-    aspectRatio: isValidAspectRatio(parameters.aspectRatio) ? parameters.aspectRatio : undefined,
-    imageInstructions: typeof parameters.imageInstructions === "string" ? parameters.imageInstructions : undefined
+    imageCount: isValidImageCount(parameters.imageCount)
+      ? parameters.imageCount
+      : undefined,
+    aspectRatio: isValidAspectRatio(parameters.aspectRatio)
+      ? parameters.aspectRatio
+      : undefined,
+    imageInstructions:
+      typeof parameters.imageInstructions === "string"
+        ? parameters.imageInstructions
+        : undefined,
   };
 }
 
-function updateCachedImageInstructions(queryClient: QueryClient, chatId: string, imageInstructions: string) {
+function updateCachedImageInstructions(
+  queryClient: QueryClient,
+  chatId: string,
+  imageInstructions: string,
+) {
   updateCachedChat(queryClient, chatId, (chat) => {
     const nextMetadata = { ...(chat.metadata ?? {}) };
     if (imageInstructions.trim()) {
@@ -873,25 +1277,44 @@ function updateCachedImageInstructions(queryClient: QueryClient, chatId: string,
     } else {
       delete nextMetadata.imageInstructions;
     }
-    return { ...chat, metadata: nextMetadata, updatedAt: new Date().toISOString() };
+    return {
+      ...chat,
+      metadata: nextMetadata,
+      updatedAt: new Date().toISOString(),
+    };
   });
 }
 
-function errorToMessage(error: unknown, fallback = "Die Generierung ist fehlgeschlagen."): string {
+function errorToMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
 function isValidImageCount(value: JsonValue | undefined): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 4;
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 4
+  );
 }
 
-function isValidAspectRatio(value: JsonValue | undefined): value is ChatAspectRatio {
+function isValidAspectRatio(
+  value: JsonValue | undefined,
+): value is ChatAspectRatio {
   return value === "square" || value === "portrait" || value === "landscape";
 }
 
-function readStoredReferences(value: JsonValue | undefined): StoredReference[] | undefined {
+function readStoredReferences(
+  value: JsonValue | undefined,
+): StoredReference[] | undefined {
   if (!Array.isArray(value)) {
-    if (value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, JsonValue>).count === 0) return [];
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      (value as Record<string, JsonValue>).count === 0
+    )
+      return [];
     return undefined;
   }
   const references = value.filter(isStoredReference).slice(0, 3);
@@ -901,7 +1324,15 @@ function readStoredReferences(value: JsonValue | undefined): StoredReference[] |
 function isStoredReference(value: JsonValue): value is StoredReference {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const reference = value as Record<string, JsonValue>;
-  if (reference.type === "pinned") return typeof reference.imageId === "string" && typeof reference.dataUrl === "string";
-  if (reference.type === "uploaded") return typeof reference.name === "string" && typeof reference.dataUrl === "string";
+  if (reference.type === "pinned")
+    return (
+      typeof reference.imageId === "string" &&
+      typeof reference.dataUrl === "string"
+    );
+  if (reference.type === "uploaded")
+    return (
+      typeof reference.name === "string" &&
+      typeof reference.dataUrl === "string"
+    );
   return false;
 }

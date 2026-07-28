@@ -1,67 +1,131 @@
 import { generationRepository } from "../../../db/repositories/generationRepository";
 import { modelLoadEstimateRepository } from "../../../db/repositories/modelLoadEstimateRepository";
-import { isProviderUsable, providerConfigRepository } from "../../../db/repositories/providerConfigRepository";
+import {
+  isProviderUsable,
+  providerConfigRepository,
+} from "../../../db/repositories/providerConfigRepository";
 import { getModel } from "../models/registry";
 import type { StaticModel } from "../models/types";
-import { isBrowserOffline, providerConnectivityError, sanitizeProviderError } from "../providers/sanitize";
+import {
+  isBrowserOffline,
+  providerConnectivityError,
+  sanitizeProviderError,
+} from "../providers/sanitize";
 import { getProviderForModel } from "../providers/registry";
-import type { ImageGenerationInput, NormalizedGenerationOutput, NormalizedImageOutput } from "../providers/types";
+import type {
+  ImageGenerationInput,
+  NormalizedGenerationOutput,
+  NormalizedImageOutput,
+} from "../providers/types";
+import i18n from "../../../i18n/i18n";
 
-export async function generateImages(chatId: string, modelId: string, input: ImageGenerationInput, signal?: AbortSignal): Promise<NormalizedImageOutput> {
+export async function generateImages(
+  chatId: string,
+  modelId: string,
+  input: ImageGenerationInput,
+  signal?: AbortSignal,
+): Promise<NormalizedImageOutput> {
   const model = getModel(modelId);
-  const providerConfig = model ? await providerConfigRepository.get(model.providerId) : undefined;
-  if (!model || !providerConfig || !isProviderUsable(providerConfig) || !["image", "image-edit"].includes(model.type)) throw new Error("Es ist kein verwendbares Bildmodell aktiv.");
-  if (model.requiresReferenceImages && !input.references?.length) throw new Error("Dieses Modell benötigt mindestens ein Referenzbild.");
+  const providerConfig = model
+    ? await providerConfigRepository.get(model.providerId)
+    : undefined;
+  if (
+    !model ||
+    !providerConfig ||
+    !isProviderUsable(providerConfig) ||
+    !["image", "image-edit"].includes(model.type)
+  )
+    throw new Error(i18n.t("errors.activeModel"));
+  if (model.requiresReferenceImages && !input.references?.length)
+    throw new Error(i18n.t("errors.referenceRequired"));
 
   const instructions = input.instructions?.trim();
-  const parameters = { imageCount: input.imageCount, aspectRatio: input.aspectRatio, references: input.referenceSnapshots ?? summarizeReferences(input), ...(instructions ? { imageInstructions: instructions } : {}), ...(input.parameters ?? {}) };
-  const { requestId } = await generationRepository.createPendingImageGeneration({
-    chatId,
-    modelId: model.id,
-    type: "image",
-    prompt: input.prompt,
-    parameters
-  });
-  await generationRepository.markImageGenerationRunning(requestId);
-
-  try {
-    signal?.throwIfAborted();
-    const { output, durationSeconds } = await requestImages(model, providerConfig, input, signal);
-    const firstImage = output.images[0];
-    if (!firstImage) throw new Error("Provider-Antwort enthält kein Bild.");
-    signal?.throwIfAborted();
-
-    const committed = await generationRepository.completeImageGenerationSuccess({
-      requestId,
+  const parameters = {
+    imageCount: input.imageCount,
+    aspectRatio: input.aspectRatio,
+    references: input.referenceSnapshots ?? summarizeReferences(input),
+    ...(instructions ? { imageInstructions: instructions } : {}),
+    ...(input.parameters ?? {}),
+  };
+  const { requestId } = await generationRepository.createPendingImageGeneration(
+    {
       chatId,
       modelId: model.id,
       type: "image",
       prompt: input.prompt,
       parameters,
-      images: output.images,
-      rawMetadata: output.rawMetadata
-    });
-    if (!committed) throw new DOMException("Die Generierung wurde abgebrochen.", "AbortError");
-    await modelLoadEstimateRepository.recordSuccessfulDuration(model.providerId, model.providerModelName, durationSeconds);
+    },
+  );
+  await generationRepository.markImageGenerationRunning(requestId);
+
+  try {
+    signal?.throwIfAborted();
+    const { output, durationSeconds } = await requestImages(
+      model,
+      providerConfig,
+      input,
+      signal,
+    );
+    const firstImage = output.images[0];
+    if (!firstImage) throw new Error(i18n.t("errors.providerNoImage"));
+    signal?.throwIfAborted();
+
+    const committed = await generationRepository.completeImageGenerationSuccess(
+      {
+        requestId,
+        chatId,
+        modelId: model.id,
+        type: "image",
+        prompt: input.prompt,
+        parameters,
+        images: output.images,
+        rawMetadata: output.rawMetadata,
+      },
+    );
+    if (!committed)
+      throw new DOMException(i18n.t("errors.aborted"), "AbortError");
+    await modelLoadEstimateRepository.recordSuccessfulDuration(
+      model.providerId,
+      model.providerModelName,
+      durationSeconds,
+    );
     return firstImage;
   } catch (error) {
     if (signal?.aborted || isAbortError(error)) {
       await generationRepository.cancelImageGeneration(requestId);
       throw error;
     }
-    await generationRepository.completeImageGenerationFailure({ requestId, error: sanitizeProviderError(error) });
+    await generationRepository.completeImageGenerationFailure({
+      requestId,
+      error: sanitizeProviderError(error),
+    });
     throw error;
   }
 }
 
-async function requestImages(model: StaticModel, providerConfig: NonNullable<Awaited<ReturnType<typeof providerConfigRepository.get>>>, input: ImageGenerationInput, signal?: AbortSignal): Promise<{ output: NormalizedGenerationOutput; durationSeconds: number }> {
+async function requestImages(
+  model: StaticModel,
+  providerConfig: NonNullable<
+    Awaited<ReturnType<typeof providerConfigRepository.get>>
+  >,
+  input: ImageGenerationInput,
+  signal?: AbortSignal,
+): Promise<{ output: NormalizedGenerationOutput; durationSeconds: number }> {
   try {
-    if (isBrowserOffline()) throw new Error(providerConnectivityError);
+    if (isBrowserOffline()) throw new Error(providerConnectivityError());
 
     const provider = getProviderForModel(model);
     const startedAtMs = Date.now();
-    const output = await provider.generateImage(model, providerConfig, input, signal);
-    const normalizedOutput = { ...output, images: await normalizeOutputImageSizes(output.images) };
+    const output = await provider.generateImage(
+      model,
+      providerConfig,
+      input,
+      signal,
+    );
+    const normalizedOutput = {
+      ...output,
+      images: await normalizeOutputImageSizes(output.images),
+    };
     const durationSeconds = (Date.now() - startedAtMs) / 1000;
     return { output: normalizedOutput, durationSeconds };
   } catch (error) {
@@ -73,18 +137,26 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-
 function summarizeReferences(input: ImageGenerationInput) {
   return { count: input.references?.length ?? 0 };
 }
 
 async function normalizeOutputImageSizes(
-  images: NormalizedGenerationOutput["images"]
+  images: NormalizedGenerationOutput["images"],
 ): Promise<NormalizedGenerationOutput["images"]> {
-  return Promise.all(images.map(async (image) => ({ ...image, blob: await scaleBlobToMaxLongEdge(image.blob, image.mimeType, 1280) })));
+  return Promise.all(
+    images.map(async (image) => ({
+      ...image,
+      blob: await scaleBlobToMaxLongEdge(image.blob, image.mimeType, 1280),
+    })),
+  );
 }
 
-async function scaleBlobToMaxLongEdge(blob: Blob, mimeType: string | undefined, maxLongEdge: number): Promise<Blob> {
+async function scaleBlobToMaxLongEdge(
+  blob: Blob,
+  mimeType: string | undefined,
+  maxLongEdge: number,
+): Promise<Blob> {
   let bitmap: ImageBitmap | undefined;
   try {
     bitmap = await createImageBitmap(blob);
@@ -111,9 +183,16 @@ async function scaleBlobToMaxLongEdge(blob: Blob, mimeType: string | undefined, 
   }
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string): Promise<Blob | null> {
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+): Promise<Blob | null> {
   return new Promise((resolve) => {
-    canvas.toBlob((result) => resolve(result), mimeType, mimeType === "image/jpeg" ? 0.92 : undefined);
+    canvas.toBlob(
+      (result) => resolve(result),
+      mimeType,
+      mimeType === "image/jpeg" ? 0.92 : undefined,
+    );
   });
 }
 

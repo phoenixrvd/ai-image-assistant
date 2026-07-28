@@ -25,38 +25,56 @@ export const chatRepository = {
     const chats = await db.chats.toArray();
     return chats
       .filter((chat) => !chat.archived)
-      .sort((left, right) => getLastChangedAt(right).localeCompare(getLastChangedAt(left)));
+      .sort((left, right) =>
+        getLastChangedAt(right).localeCompare(getLastChangedAt(left)),
+      );
   },
 
   async get(id: string): Promise<ChatEntity | undefined> {
     return db.chats.get(id);
   },
 
-  async create(title = "Neue Sitzung", activeImageModelId?: string): Promise<ChatEntity> {
+  async create(
+    title: string,
+    activeImageModelId?: string,
+  ): Promise<ChatEntity> {
     const now = nowIso();
-    const metadata = activeImageModelId ? { chatSettings: { activeImageModelId } } : undefined;
-    const chat = { id: createId("chat"), title, metadata, createdAt: now, updatedAt: now };
+    const metadata = activeImageModelId
+      ? { chatSettings: { activeImageModelId } }
+      : undefined;
+    const chat = {
+      id: createId("chat"),
+      title,
+      metadata,
+      createdAt: now,
+      updatedAt: now,
+    };
     await db.chats.add(chat);
     return chat;
   },
 
   async createFromImage(
+    title: string,
     settings: ChatSettings,
     message: Pick<MessageEntity, "role" | "content" | "metadata">,
-    image: Pick<ImageEntity, "blob" | "mimeType" | "width" | "height" | "prompt" | "modelId">
+    image: Pick<
+      ImageEntity,
+      "blob" | "mimeType" | "width" | "height" | "prompt" | "modelId"
+    >,
   ): Promise<ChatEntity> {
     const now = nowIso();
     const messageId = createId("msg");
     const chatSettings = sanitizeChatSettings(settings);
     const metadata: Record<string, unknown> = { chatSettings };
-    if (chatSettings.imageInstructions?.trim()) metadata.imageInstructions = chatSettings.imageInstructions;
+    if (chatSettings.imageInstructions?.trim())
+      metadata.imageInstructions = chatSettings.imageInstructions;
     const chat = {
       id: createId("chat"),
-      title: "Neue Sitzung",
+      title,
       metadata: metadata as ChatEntity["metadata"],
       lastMessageAt: now,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
 
     await db.transaction("rw", db.chats, db.messages, db.images, async () => {
@@ -68,7 +86,7 @@ export const chatRepository = {
         content: message.content,
         metadata: message.metadata,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       });
       await db.images.add({
         id: createId("img"),
@@ -82,26 +100,35 @@ export const chatRepository = {
         prompt: image.prompt,
         modelId: image.modelId,
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       });
     });
     return chat;
   },
 
   async updateTitle(id: string, title: string): Promise<void> {
-    await db.chats.update(id, { title, titleEdited: true, updatedAt: nowIso() });
+    await db.chats.update(id, {
+      title,
+      titleEdited: true,
+      updatedAt: nowIso(),
+    });
   },
 
-  async updateImageInstructions(id: string, imageInstructions: string): Promise<void> {
+  async updateImageInstructions(
+    id: string,
+    imageInstructions: string,
+  ): Promise<void> {
     await this.updateSettings(id, { imageInstructions });
   },
 
-  async initializeMissingImageModels(activeImageModelId: string): Promise<void> {
+  async initializeMissingImageModels(
+    activeImageModelId: string,
+  ): Promise<void> {
     const chats = await db.chats.toArray();
     await Promise.all(
       chats
         .filter((chat) => !parseChatSettings(chat).activeImageModelId)
-        .map((chat) => this.updateSettings(chat.id, { activeImageModelId }))
+        .map((chat) => this.updateSettings(chat.id, { activeImageModelId })),
     );
   },
 
@@ -111,7 +138,10 @@ export const chatRepository = {
     return parseChatSettings(chat);
   },
 
-  async updateSettings(id: string, patch: Partial<ChatSettings>): Promise<void> {
+  async updateSettings(
+    id: string,
+    patch: Partial<ChatSettings>,
+  ): Promise<void> {
     await db.transaction("rw", db.chats, async () => {
       const chat = await db.chats.get(id);
       if (!chat) return;
@@ -128,7 +158,7 @@ export const chatRepository = {
 
       await db.chats.update(id, {
         metadata: metadata as ChatEntity["metadata"],
-        updatedAt: nowIso()
+        updatedAt: nowIso(),
       });
     });
   },
@@ -138,19 +168,31 @@ export const chatRepository = {
       const chat = await db.chats.get(id);
       if (!chat || chat.titleEdited) return;
       const now = nowIso();
-      await db.chats.update(id, { title, titleGeneratedAt: now, updatedAt: now });
+      await db.chats.update(id, {
+        title,
+        titleGeneratedAt: now,
+        updatedAt: now,
+      });
     });
   },
 
   async deleteWithChildren(id: string): Promise<void> {
-    await db.transaction("rw", db.chats, db.messages, db.images, db.generationRequests, db.generationResults, async () => {
-      await db.messages.where("chatId").equals(id).delete();
-      await db.images.where("chatId").equals(id).delete();
-      await db.generationRequests.where("chatId").equals(id).delete();
-      await db.generationResults.where("chatId").equals(id).delete();
-      await db.chats.delete(id);
-    });
-  }
+    await db.transaction(
+      "rw",
+      db.chats,
+      db.messages,
+      db.images,
+      db.generationRequests,
+      db.generationResults,
+      async () => {
+        await db.messages.where("chatId").equals(id).delete();
+        await db.images.where("chatId").equals(id).delete();
+        await db.generationRequests.where("chatId").equals(id).delete();
+        await db.generationResults.where("chatId").equals(id).delete();
+        await db.chats.delete(id);
+      },
+    );
+  },
 };
 
 export function getLastChangedAt(chat: ChatEntity): string {
@@ -160,15 +202,22 @@ export function getLastChangedAt(chat: ChatEntity): string {
 function parseChatSettings(chat: ChatEntity): ChatSettings {
   const metadata = chat.metadata ?? {};
   const rawSettings = metadata.chatSettings;
-  const settings = rawSettings && typeof rawSettings === "object" && !Array.isArray(rawSettings) ? (rawSettings as Record<string, unknown>) : {};
+  const settings =
+    rawSettings &&
+    typeof rawSettings === "object" &&
+    !Array.isArray(rawSettings)
+      ? (rawSettings as Record<string, unknown>)
+      : {};
 
   return sanitizeChatSettings({
     promptDraft: readString(settings.promptDraft),
     activeImageModelId: readString(settings.activeImageModelId),
     imageCount: readImageCount(settings.imageCount),
     aspectRatio: readAspectRatio(settings.aspectRatio),
-    imageInstructions: readString(settings.imageInstructions) ?? readString(metadata.imageInstructions),
-    uploadedReferences: readUploadedReferences(settings.uploadedReferences)
+    imageInstructions:
+      readString(settings.imageInstructions) ??
+      readString(metadata.imageInstructions),
+    uploadedReferences: readUploadedReferences(settings.uploadedReferences),
   });
 }
 
@@ -179,7 +228,10 @@ function sanitizeChatSettings(settings: ChatSettings): ChatSettings {
     imageCount: settings.imageCount,
     aspectRatio: settings.aspectRatio,
     imageInstructions: settings.imageInstructions ?? "",
-    uploadedReferences: (settings.uploadedReferences ?? []).slice(0, maxUploadedReferences)
+    uploadedReferences: (settings.uploadedReferences ?? []).slice(
+      0,
+      maxUploadedReferences,
+    ),
   };
 }
 
@@ -188,11 +240,18 @@ function readString(value: unknown): string | undefined {
 }
 
 function readImageCount(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 4 ? value : undefined;
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 4
+    ? value
+    : undefined;
 }
 
 function readAspectRatio(value: unknown): ChatAspectRatio | undefined {
-  return value === "square" || value === "portrait" || value === "landscape" ? value : undefined;
+  return value === "square" || value === "portrait" || value === "landscape"
+    ? value
+    : undefined;
 }
 
 function readUploadedReferences(value: unknown): ChatUploadedReference[] {
@@ -200,7 +259,8 @@ function readUploadedReferences(value: unknown): ChatUploadedReference[] {
 
   return value
     .map((entry) => {
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return undefined;
+      if (!entry || typeof entry !== "object" || Array.isArray(entry))
+        return undefined;
       const reference = entry as Record<string, unknown>;
       const name = readString(reference.name);
       const dataUrl = readString(reference.dataUrl);

@@ -1,19 +1,43 @@
 import { Fragment, useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { Moon, Sun } from "lucide-react";
 import type { ProviderConfigEntity, ThemeMode } from "../../db/entities";
 import { appOptionsRepository } from "../../db/repositories/appOptionsRepository";
 import { modelLoadEstimateRepository } from "../../db/repositories/modelLoadEstimateRepository";
-import { isProviderUsable, providerConfigRepository } from "../../db/repositories/providerConfigRepository";
-import { getModelLabel, getProviderDefinition, listModels, listModelsByProvider, listUsableModels, providerDefinitions } from "../../features/generation/models/registry";
-import type { ProviderId, StaticModel } from "../../features/generation/models/types";
+import {
+  isProviderUsable,
+  providerConfigRepository,
+} from "../../db/repositories/providerConfigRepository";
+import {
+  getModelLabel,
+  getProviderDefinition,
+  listModels,
+  listModelsByProvider,
+  listUsableModels,
+  providerDefinitions,
+} from "../../features/generation/models/registry";
+import type {
+  ProviderId,
+  StaticModel,
+} from "../../features/generation/models/types";
 import { appMetadata } from "../metadata";
+import { changeAppLanguage } from "../../i18n/i18n";
+import type { AppLanguage } from "../../i18n/types";
 
-export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; theme: ThemeMode; defaultImageModelId?: string; onDefaultImageModel: (modelId: string) => void }) {
+export function OptionsView(props: {
+  providerConfigs: ProviderConfigEntity[];
+  theme: ThemeMode;
+  defaultImageModelId?: string;
+  onDefaultImageModel: (modelId: string) => void;
+}) {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const saveProviderMutation = useMutation({
-    mutationFn: (provider: ProviderConfigEntity) => providerConfigRepository.save(provider),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["providerConfigs"] })
+    mutationFn: (provider: ProviderConfigEntity) =>
+      providerConfigRepository.save(provider),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["providerConfigs"] }),
   });
 
   async function setTheme(theme: ThemeMode) {
@@ -21,20 +45,32 @@ export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; th
     await queryClient.invalidateQueries({ queryKey: ["theme"] });
   }
 
-  const usableImageModels = listUsableModels(["image", "image-edit"], props.providerConfigs);
+  async function setLanguage(language: AppLanguage) {
+    await changeAppLanguage(language);
+  }
+
+  const usableImageModels = listUsableModels(
+    ["image", "image-edit"],
+    props.providerConfigs,
+  );
 
   const modelEstimateQuery = useQuery({
     queryKey: ["modelLoadEstimates"],
     queryFn: async () => {
-      const imageModels = listModels().filter((model) => model.type === "image" || model.type === "image-edit");
+      const imageModels = listModels().filter(
+        (model) => model.type === "image" || model.type === "image-edit",
+      );
       const entries = await Promise.all(
         imageModels.map(async (model) => {
-          const seconds = await modelLoadEstimateRepository.getEstimatedSeconds(model.providerId, model.providerModelName);
+          const seconds = await modelLoadEstimateRepository.getEstimatedSeconds(
+            model.providerId,
+            model.providerModelName,
+          );
           return [estimateKey(model), seconds] as const;
-        })
+        }),
       );
       return Object.fromEntries(entries);
-    }
+    },
   });
 
   return (
@@ -42,49 +78,115 @@ export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; th
       <section className="options-section" aria-labelledby="providers-heading">
         <div className="d-flex align-items-center justify-content-between gap-3">
           <h2 id="providers-heading" className="h5 mb-0">
-            Provider
+            {t("options.provider")}
           </h2>
         </div>
         {providerDefinitions.map((definition) => {
-          const provider = props.providerConfigs.find((entry) => entry.id === definition.id) ?? createProviderFallback(definition.id);
-          return <ProviderForm key={definition.id} provider={provider} estimates={modelEstimateQuery.data} onSave={(next) => saveProviderMutation.mutate(next)} />;
+          const provider =
+            props.providerConfigs.find((entry) => entry.id === definition.id) ??
+            createProviderFallback(definition.id);
+          return (
+            <ProviderForm
+              key={definition.id}
+              provider={provider}
+              estimates={modelEstimateQuery.data}
+              onSave={(next) => saveProviderMutation.mutate(next)}
+            />
+          );
         })}
       </section>
       <section className="options-section" aria-labelledby="general-heading">
         <h2 id="general-heading" className="h5 mb-0">
-          Allgemein
+          {t("options.general")}
         </h2>
         <div className="general-options">
           <div className="form-floating">
-            <select className="form-select" id="default-image-model" value={props.defaultImageModelId ?? ""} disabled={usableImageModels.length === 0} onChange={(event) => props.onDefaultImageModel(event.target.value)}>
-              {usableImageModels.length === 0 ? <option value="">Kein verwendbares Bildmodell</option> : null}
+            <select
+              className="form-select"
+              id="default-image-model"
+              value={props.defaultImageModelId ?? ""}
+              disabled={usableImageModels.length === 0}
+              onChange={(event) =>
+                props.onDefaultImageModel(event.target.value)
+              }
+            >
+              {usableImageModels.length === 0 ? (
+                <option value="">{t("options.noImageModel")}</option>
+              ) : null}
               {usableImageModels.map((model) => (
                 <option key={model.id} value={model.id}>
                   {getModelLabel(model)}
                 </option>
               ))}
             </select>
-            <label htmlFor="default-image-model">Standard-Bildmodell</label>
+            <label htmlFor="default-image-model">
+              {t("options.defaultImageModel")}
+            </label>
           </div>
-          <div className="btn-group w-100" role="group" aria-label="Theme">
+          <div
+            className="btn-group w-100"
+            role="group"
+            aria-label={t("options.theme")}
+          >
             {[
-              { id: "light", label: "Light", icon: <Sun size={17} /> },
-              { id: "dark", label: "Dark", icon: <Moon size={17} /> },
-              { id: "system", label: "System" }
+              {
+                id: "light",
+                label: t("options.light"),
+                icon: <Sun size={17} />,
+              },
+              {
+                id: "dark",
+                label: t("options.dark"),
+                icon: <Moon size={17} />,
+              },
+              { id: "system", label: t("options.system") },
             ].map((theme) => (
               <Fragment key={theme.id}>
-                <input type="radio" className="btn-check" name="theme" id={`theme-${theme.id}`} autoComplete="off" checked={props.theme === theme.id} onChange={() => setTheme(theme.id as ThemeMode)} />
-                <label className="btn btn-outline-secondary" htmlFor={`theme-${theme.id}`}>
+                <input
+                  type="radio"
+                  className="btn-check"
+                  name="theme"
+                  id={`theme-${theme.id}`}
+                  autoComplete="off"
+                  checked={props.theme === theme.id}
+                  onChange={() => setTheme(theme.id as ThemeMode)}
+                />
+                <label
+                  className="btn btn-outline-secondary"
+                  htmlFor={`theme-${theme.id}`}
+                >
                   {theme.icon} {theme.label}
                 </label>
               </Fragment>
             ))}
           </div>
+          <div className="form-floating">
+            <select
+              className="form-select"
+              id="language"
+              value={i18n.language}
+              onChange={(event) =>
+                void setLanguage(event.target.value as AppLanguage)
+              }
+            >
+              <option value="de">{t("options.german")}</option>
+              <option value="en">{t("options.english")}</option>
+            </select>
+            <label htmlFor="language">{t("options.language")}</label>
+          </div>
           <div className="settings-meta">
-            <span>Version {appMetadata.version}</span>
-            <span>Build {appMetadata.buildTime}</span>
-            <span>DB Schema {appMetadata.dbSchemaVersion}</span>
-            <span>Commit {appMetadata.gitCommit}</span>
+            <span>
+              {t("options.version")} {appMetadata.version}
+            </span>
+            <span>
+              {t("options.build")} {appMetadata.buildTime}
+            </span>
+            <span>
+              {t("options.schema")} {appMetadata.dbSchemaVersion}
+            </span>
+            <span>
+              {t("options.commit")} {appMetadata.gitCommit}
+            </span>
           </div>
         </div>
       </section>
@@ -92,12 +194,23 @@ export function OptionsView(props: { providerConfigs: ProviderConfigEntity[]; th
   );
 }
 
-function ProviderForm(props: { provider: ProviderConfigEntity; estimates?: Record<string, number>; onSave: (provider: ProviderConfigEntity) => void }) {
+function ProviderForm(props: {
+  provider: ProviderConfigEntity;
+  estimates?: Record<string, number>;
+  onSave: (provider: ProviderConfigEntity) => void;
+}) {
+  const { t, i18n } = useTranslation();
   const [provider, setProvider] = useState(props.provider);
   const [validated, setValidated] = useState(false);
   const usable = isProviderUsable(provider);
   const definition = getProviderDefinition(provider.id);
-  const activeModels = usable ? listModelsByProvider(provider.id as ProviderId).sort((left, right) => left.name.localeCompare(right.name, "de", { sensitivity: "base" })) : [];
+  const activeModels = usable
+    ? listModelsByProvider(provider.id as ProviderId).sort((left, right) =>
+        left.name.localeCompare(right.name, i18n.language, {
+          sensitivity: "base",
+        }),
+      )
+    : [];
   const shouldShowSavedErrors = !validated && provider.enabled !== false;
 
   useEffect(() => setProvider(props.provider), [props.provider]);
@@ -110,40 +223,97 @@ function ProviderForm(props: { provider: ProviderConfigEntity; estimates?: Recor
   }
 
   return (
-    <form className={validated ? "model-form was-validated" : "model-form"} noValidate onSubmit={submitProvider}>
+    <form
+      className={validated ? "model-form was-validated" : "model-form"}
+      noValidate
+      onSubmit={submitProvider}
+    >
       <h3 className="h6 mb-0">{definition?.label ?? provider.id}</h3>
       <div className="form-floating">
-        <input id={`provider-url-${provider.id}`} className={fieldClass(!provider.baseUrl.trim(), shouldShowSavedErrors, "form-control")} value={provider.baseUrl} placeholder={definition?.defaultBaseUrl ?? "https://api.example.com"} required onChange={(event) => setProvider({ ...provider, baseUrl: event.target.value })} />
-        <label htmlFor={`provider-url-${provider.id}`}>Base URL</label>
-        <div className="invalid-feedback">Bitte eine Base URL eingeben.</div>
+        <input
+          id={`provider-url-${provider.id}`}
+          className={fieldClass(
+            !provider.baseUrl.trim(),
+            shouldShowSavedErrors,
+            "form-control",
+          )}
+          value={provider.baseUrl}
+          placeholder={definition?.defaultBaseUrl ?? "https://api.example.com"}
+          required
+          onChange={(event) =>
+            setProvider({ ...provider, baseUrl: event.target.value })
+          }
+        />
+        <label htmlFor={`provider-url-${provider.id}`}>
+          {t("options.baseUrl")}
+        </label>
+        <div className="invalid-feedback">{t("options.requiredBaseUrl")}</div>
       </div>
       <div className="form-floating">
-        <input id={`provider-key-${provider.id}`} className={fieldClass(!provider.apiKey?.trim(), shouldShowSavedErrors, "form-control")} value={provider.apiKey ?? ""} type="password" placeholder="API-Key" required onChange={(event) => setProvider({ ...provider, apiKey: event.target.value })} />
-        <label htmlFor={`provider-key-${provider.id}`}>API-Key</label>
-        <div className="invalid-feedback">Bitte einen API-Key eingeben.</div>
+        <input
+          id={`provider-key-${provider.id}`}
+          className={fieldClass(
+            !provider.apiKey?.trim(),
+            shouldShowSavedErrors,
+            "form-control",
+          )}
+          value={provider.apiKey ?? ""}
+          type="password"
+          placeholder="API-Key"
+          required
+          onChange={(event) =>
+            setProvider({ ...provider, apiKey: event.target.value })
+          }
+        />
+        <label htmlFor={`provider-key-${provider.id}`}>
+          {t("options.apiKey")}
+        </label>
+        <div className="invalid-feedback">{t("options.requiredApiKey")}</div>
       </div>
       <label className="form-check d-inline-flex align-items-center gap-2">
-        <input className="form-check-input" type="checkbox" checked={provider.enabled !== false} onChange={(event) => setProvider({ ...provider, enabled: event.target.checked })} /> <span className="form-check-label">Aktiviert</span>
+        <input
+          className="form-check-input"
+          type="checkbox"
+          checked={provider.enabled !== false}
+          onChange={(event) =>
+            setProvider({ ...provider, enabled: event.target.checked })
+          }
+        />{" "}
+        <span className="form-check-label">{t("options.enabled")}</span>
       </label>
       <div className="small text-secondary">
-        <div>Aktive Modelle</div>
+        <div>{t("options.activeModels")}</div>
         {activeModels.length > 0 ? (
           <ul className="mb-0 ps-3">
             {activeModels.map((model) => (
-              <li key={model.id}>{formatModelName(model, props.estimates)}</li>
+              <li key={model.id}>
+                {formatModelName(model, t, props.estimates)}
+              </li>
             ))}
           </ul>
         ) : (
-          <span>keine</span>
+          <span>{t("common.none")}</span>
         )}
       </div>
       <div className="d-flex align-items-center justify-content-between gap-3">
-        <span className={usable ? "model-status model-status--usable" : "model-status model-status--incomplete"}>
+        <span
+          className={
+            usable
+              ? "model-status model-status--usable"
+              : "model-status model-status--incomplete"
+          }
+        >
           <span className="model-status__dot" aria-hidden="true" />
-          <span>{usable ? "verwendbar" : provider.enabled === false ? "inaktiv" : "unvollständig"}</span>
+          <span>
+            {usable
+              ? t("options.usable")
+              : provider.enabled === false
+                ? t("options.inactive")
+                : t("options.incomplete")}
+          </span>
         </span>
         <button className="btn btn-primary" type="submit">
-          Speichern
+          {t("common.save")}
         </button>
       </div>
     </form>
@@ -153,19 +323,38 @@ function ProviderForm(props: { provider: ProviderConfigEntity; estimates?: Recor
 function createProviderFallback(providerId: ProviderId): ProviderConfigEntity {
   const now = new Date().toISOString();
   const definition = getProviderDefinition(providerId);
-  return { id: providerId, baseUrl: definition?.defaultBaseUrl ?? "", enabled: true, createdAt: now, updatedAt: now };
+  return {
+    id: providerId,
+    baseUrl: definition?.defaultBaseUrl ?? "",
+    enabled: true,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
-function fieldClass(invalid: boolean, showInvalid: boolean, baseClass: string): string {
+function fieldClass(
+  invalid: boolean,
+  showInvalid: boolean,
+  baseClass: string,
+): string {
   return invalid && showInvalid ? `${baseClass} is-invalid` : baseClass;
 }
 
-function formatModelName(model: StaticModel, estimates?: Record<string, number>): string {
+function formatModelName(
+  model: StaticModel,
+  t: ReturnType<typeof useTranslation>["t"],
+  estimates?: Record<string, number>,
+): string {
   if (model.type === "text") return model.name;
   const seconds = estimates?.[estimateKey(model)] ?? 30;
-  return `${model.name} (~${Math.round(seconds)} sec.)`;
+  return t("options.estimate", {
+    name: model.name,
+    seconds: Math.round(seconds),
+  });
 }
 
-function estimateKey(model: Pick<StaticModel, "providerId" | "providerModelName">): string {
+function estimateKey(
+  model: Pick<StaticModel, "providerId" | "providerModelName">,
+): string {
   return `${model.providerId}::${model.providerModelName}`;
 }

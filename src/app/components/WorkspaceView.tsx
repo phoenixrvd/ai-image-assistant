@@ -1,17 +1,28 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { ClipboardEvent, KeyboardEvent, MouseEvent, RefObject } from "react";
-import { Download, Eraser, Image as ImageIcon, MessageCircle, Pin, RotateCcw, SlidersHorizontal, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type {
+  ClipboardEvent,
+  KeyboardEvent,
+  MouseEvent,
+  RefObject,
+} from "react";
+import {
+  Download,
+  Eraser,
+  Image as ImageIcon,
+  MessageCircle,
+  Pin,
+  RotateCcw,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import type { GenerationRequestEntity, ImageEntity } from "../../db/entities";
-import { getModel, getModelLabel } from "../../features/generation/models/registry";
+import {
+  getModel,
+  getModelLabel,
+} from "../../features/generation/models/registry";
 import { formatMessageDate } from "../appHelpers";
 import { SendProgressButton } from "./SendProgressButton";
-
-const examplePrompts = [
-  "Ein cineastisches Portrait einer Astronautin in einem Gewächshaus auf dem Mars, natürliches Licht, 35mm Filmlook.",
-  "Produktfoto einer minimalistischen Keramiklampe auf warmem Travertin, weiche Schatten, Editorial-Stil.",
-  "Isometrische Illustration einer kleinen Küstenstadt bei Sonnenuntergang, klare Formen, detailreich.",
-  "Surreale Waldlichtung mit schwebenden Glasfischen, volumetrischer Nebel, ruhige Farbpalette."
-];
 
 const scrollBottomThreshold = 80;
 const scrollTargetGap = 12;
@@ -24,7 +35,12 @@ type ScrollMetrics = {
   scrollTop: number;
 };
 
-type MessageView = { id: string; content: string; requestId?: string; createdAt: string };
+type MessageView = {
+  id: string;
+  content: string;
+  requestId?: string;
+  createdAt: string;
+};
 
 export function WorkspaceView(props: {
   sessionId?: string;
@@ -55,6 +71,13 @@ export function WorkspaceView(props: {
   onOverlay: (id: string | undefined) => void;
   onShowNextPinnedImage: () => void;
 }) {
+  const { t, i18n } = useTranslation();
+  const examplePrompts = [
+    t("workspace.example1"),
+    t("workspace.example2"),
+    t("workspace.example3"),
+    t("workspace.example4"),
+  ];
   const resultStreamRef = useRef<HTMLDivElement>(null);
   const latestMessageAnchorRef = useRef<HTMLSpanElement | null>(null);
   const bottomOverlayRef = useRef<HTMLDivElement>(null);
@@ -67,7 +90,7 @@ export function WorkspaceView(props: {
     firstContentId,
     latestMessageAnchorRef,
     scrollRef: resultStreamRef,
-    sessionId: props.sessionId ?? "workspace"
+    sessionId: props.sessionId ?? "workspace",
   });
 
   useOverlayHeight(bottomOverlayRef, "--workspace-bottom-overlay-height");
@@ -75,7 +98,9 @@ export function WorkspaceView(props: {
 
   useLayoutEffect(() => {
     const stream = resultStreamRef.current;
-    const image = props.focusedImageId ? document.getElementById(`image-${props.focusedImageId}`) : undefined;
+    const image = props.focusedImageId
+      ? document.getElementById(`image-${props.focusedImageId}`)
+      : undefined;
     if (!stream || !image) return;
 
     scrollToImage(stream, image);
@@ -112,13 +137,17 @@ export function WorkspaceView(props: {
 
   function handlePromptPaste(event: ClipboardEvent<HTMLDivElement>) {
     event.preventDefault();
-    document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+    document.execCommand(
+      "insertText",
+      false,
+      event.clipboardData.getData("text/plain"),
+    );
   }
 
   function clearPromptWithConfirmation(event: MouseEvent<HTMLButtonElement>) {
     event.currentTarget.blur();
     if (!props.prompt.trim()) return;
-    const confirmed = window.confirm("Prompt-Eingabe wirklich löschen?");
+    const confirmed = window.confirm(t("workspace.deletePrompt"));
     if (!confirmed) return;
     props.setPrompt("");
   }
@@ -138,7 +167,11 @@ export function WorkspaceView(props: {
     return { byMessage, withoutMessage };
   }, [props.images]);
 
-  const requestsById = useMemo(() => new Map(props.generationRequests.map((request) => [request.id, request])), [props.generationRequests]);
+  const requestsById = useMemo(
+    () =>
+      new Map(props.generationRequests.map((request) => [request.id, request])),
+    [props.generationRequests],
+  );
   const showWelcome = props.contentReady && props.messages.length === 0;
 
   function handleResultContentLoaded() {
@@ -147,17 +180,33 @@ export function WorkspaceView(props: {
 
   return (
     <section className="workspace-body">
-      <div ref={resultStreamRef} className="result-stream" onScroll={scrollState.handleScroll}>
+      <div
+        ref={resultStreamRef}
+        className="result-stream"
+        onScroll={scrollState.handleScroll}
+      >
         {showWelcome && (
-          <section className="welcome-card" aria-label="Beispiel-Prompts">
-            <p>Beschreibe dein Bild frei oder übernimm eines der Beispiele in das Prompt-Feld.</p>
-            <div className="example-prompts" aria-label="Beispiel-Prompts">
+          <section
+            className="welcome-card"
+            aria-label={t("workspace.examplesLabel")}
+          >
+            <p>{t("workspace.welcome")}</p>
+            <div
+              className="example-prompts"
+              aria-label={t("workspace.examplesLabel")}
+            >
               {examplePrompts.map((example) => (
-                <pre key={example} role="button" tabIndex={0} onClick={() => props.setPrompt(example)} onKeyDown={(event) => {
-                  if (event.key !== "Enter" && event.key !== " ") return;
-                  event.preventDefault();
-                  props.setPrompt(example);
-                }}>
+                <pre
+                  key={example}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => props.setPrompt(example)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    props.setPrompt(example);
+                  }}
+                >
                   {example}
                 </pre>
               ))}
@@ -165,23 +214,31 @@ export function WorkspaceView(props: {
           </section>
         )}
         {props.messages.map((message) => {
-          const request = message.requestId ? requestsById.get(message.requestId) : undefined;
+          const request = message.requestId
+            ? requestsById.get(message.requestId)
+            : undefined;
           return (
             <article key={message.id} className="prompt-card">
               {!!imagesByMessageId.byMessage.get(message.id)?.length && (
                 <div className="image-grid">
-                  {(imagesByMessageId.byMessage.get(message.id) ?? []).map((image) => (
-                    <ImageCard
-                      key={image.id}
-                      image={image}
-                      overlayActive={props.overlayImageId === image.id}
-                      onContentLoaded={handleResultContentLoaded}
-                      onCreateChatFromImage={image.requestId && requestsById.has(image.requestId) ? props.onCreateChatFromImage : undefined}
-                      isCreatingChatFromImage={props.isCreatingChatFromImage}
-                      onTogglePinned={props.onTogglePinned}
-                      onOverlay={props.onOverlay}
-                    />
-                  ))}
+                  {(imagesByMessageId.byMessage.get(message.id) ?? []).map(
+                    (image) => (
+                      <ImageCard
+                        key={image.id}
+                        image={image}
+                        overlayActive={props.overlayImageId === image.id}
+                        onContentLoaded={handleResultContentLoaded}
+                        onCreateChatFromImage={
+                          image.requestId && requestsById.has(image.requestId)
+                            ? props.onCreateChatFromImage
+                            : undefined
+                        }
+                        isCreatingChatFromImage={props.isCreatingChatFromImage}
+                        onTogglePinned={props.onTogglePinned}
+                        onOverlay={props.onOverlay}
+                      />
+                    ),
+                  )}
                 </div>
               )}
               <button
@@ -197,16 +254,31 @@ export function WorkspaceView(props: {
               </button>
               <div className="d-flex flex-wrap align-items-center gap-2 mt-1">
                 <small className="message-meta">
-                  {formatMessageDate(message.createdAt)}
-                  {request && <span> · {getGenerationModelLabel(request)}</span>}
+                  {formatMessageDate(
+                    message.createdAt,
+                    i18n.language === "de" ? "de" : "en",
+                  )}
+                  {request && (
+                    <span> · {getGenerationModelLabel(request)}</span>
+                  )}
                 </small>
                 <div className="d-inline-flex align-items-center gap-2 ms-auto">
                   {request && (
-                    <button type="button" className="prompt-repeat" aria-label="Prompt wiederholen" onClick={() => props.onRepeatPrompt(request)}>
+                    <button
+                      type="button"
+                      className="prompt-repeat"
+                      aria-label={t("workspace.promptAgain")}
+                      onClick={() => props.onRepeatPrompt(request)}
+                    >
                       <RotateCcw size={12} aria-hidden="true" />
                     </button>
                   )}
-                  <button type="button" className="message-delete" aria-label="Nachricht löschen" onClick={() => props.onDeleteMessage(message.id)}>
+                  <button
+                    type="button"
+                    className="message-delete"
+                    aria-label={t("workspace.deleteMessage")}
+                    onClick={() => props.onDeleteMessage(message.id)}
+                  >
                     <Trash2 size={12} aria-hidden="true" />
                   </button>
                 </div>
@@ -231,16 +303,27 @@ export function WorkspaceView(props: {
             </div>
           </article>
         )}
-        <span ref={latestMessageAnchorRef} className="message-scroll-anchor" aria-hidden="true" />
+        <span
+          ref={latestMessageAnchorRef}
+          className="message-scroll-anchor"
+          aria-hidden="true"
+        />
       </div>
       <div ref={bottomOverlayRef} className="workspace-bottom-overlay">
         {props.error && (
           <p className="alert alert-danger error-alert mb-0">
             <span>{props.error}</span>
-            <button type="button" className="btn-close error-dismiss" aria-label="Fehlermeldung schließen" onClick={props.onDismissError} />
+            <button
+              type="button"
+              className="btn-close error-dismiss"
+              aria-label={t("workspace.closeError")}
+              onClick={props.onDismissError}
+            />
           </p>
         )}
-        {props.connectivityNotice && <p className="alert alert-warning mb-0">{props.connectivityNotice}</p>}
+        {props.connectivityNotice && (
+          <p className="alert alert-warning mb-0">{props.connectivityNotice}</p>
+        )}
         <form
           className="prompt-bar"
           onSubmit={(event) => {
@@ -255,36 +338,56 @@ export function WorkspaceView(props: {
               contentEditable
               role="textbox"
               aria-multiline="true"
-              aria-label="..."
-              data-placeholder="..."
-              onInput={(event) => props.setPrompt(event.currentTarget.textContent ?? "")}
+              aria-label={t("workspace.promptPlaceholder")}
+              data-placeholder={t("workspace.promptPlaceholder")}
+              onInput={(event) =>
+                props.setPrompt(event.currentTarget.textContent ?? "")
+              }
               onKeyDown={handlePromptKeyDown}
               onPaste={handlePromptPaste}
             />
             <div className="prompt-controls">
               <div className="d-inline-flex align-items-center gap-1">
-                <button className="prompt-config" type="button" aria-label="Chat-Optionen öffnen" onClick={props.onOpenConfig}>
+                <button
+                  className="prompt-config"
+                  type="button"
+                  aria-label={t("workspace.openChatOptions")}
+                  onClick={props.onOpenConfig}
+                >
                   <SlidersHorizontal size={18} aria-hidden="true" />
                 </button>
-                <button className="prompt-clear" type="button" aria-label="Prompt-Eingabe löschen" onClick={clearPromptWithConfirmation}>
+                <button
+                  className="prompt-clear"
+                  type="button"
+                  aria-label={t("workspace.clearPrompt")}
+                  onClick={clearPromptWithConfirmation}
+                >
                   <Eraser size={18} aria-hidden="true" />
                 </button>
                 <button
                   className="prompt-pinned-images"
                   type="button"
                   disabled={props.pinnedImageCount === 0}
-                  aria-label={`Zum nächsten angepinnten Bild springen (${props.pinnedImageCount} angepinnt)`}
+                  aria-label={t("workspace.nextPinned", {
+                    count: props.pinnedImageCount,
+                  })}
                   onClick={props.onShowNextPinnedImage}
                 >
                   <Pin size={18} aria-hidden="true" />
-                  {props.pinnedImageCount > 0 && <sup>{props.pinnedImageCount}</sup>}
+                  {props.pinnedImageCount > 0 && (
+                    <sup>{props.pinnedImageCount}</sup>
+                  )}
                 </button>
               </div>
               <SendProgressButton
                 progressPercent={props.generationProgressPercent}
                 loading={props.isGenerating}
                 disabled={!props.canGenerate && !props.isGenerating}
-                ariaLabel={props.isGenerating ? "Generierung abbrechen" : "Generieren"}
+                ariaLabel={
+                  props.isGenerating
+                    ? t("workspace.cancelGeneration")
+                    : t("workspace.generate")
+                }
                 onCancel={props.onCancel}
               />
             </div>
@@ -305,21 +408,38 @@ function getGenerationModelLabel(request: GenerationRequestEntity): string {
 }
 
 function isNearBottom(element: HTMLElement) {
-  return element.scrollHeight - element.scrollTop - element.clientHeight < scrollBottomThreshold;
+  return (
+    element.scrollHeight - element.scrollTop - element.clientHeight <
+    scrollBottomThreshold
+  );
 }
 
-function isNearScrollTarget(scrollElement: HTMLElement, latestMessage: HTMLElement | null) {
+function isNearScrollTarget(
+  scrollElement: HTMLElement,
+  latestMessage: HTMLElement | null,
+) {
   if (!latestMessage) return isNearBottom(scrollElement);
-  return Math.abs(scrollElement.scrollTop - getLatestMessageScrollTop(scrollElement, latestMessage)) < scrollBottomThreshold;
+  return (
+    Math.abs(
+      scrollElement.scrollTop -
+        getLatestMessageScrollTop(scrollElement, latestMessage),
+    ) < scrollBottomThreshold
+  );
 }
 
-function useOverlayHeight(ref: RefObject<HTMLElement | null>, cssVariable: string) {
+function useOverlayHeight(
+  ref: RefObject<HTMLElement | null>,
+  cssVariable: string,
+) {
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
 
     const updateHeight = () => {
-      element.parentElement?.style.setProperty(cssVariable, `${element.offsetHeight}px`);
+      element.parentElement?.style.setProperty(
+        cssVariable,
+        `${element.offsetHeight}px`,
+      );
     };
 
     updateHeight();
@@ -329,14 +449,21 @@ function useOverlayHeight(ref: RefObject<HTMLElement | null>, cssVariable: strin
   }, [cssVariable, ref]);
 }
 
-function useScrollbarWidth(scrollRef: RefObject<HTMLElement | null>, overlayRef: RefObject<HTMLElement | null>, contentCount: number) {
+function useScrollbarWidth(
+  scrollRef: RefObject<HTMLElement | null>,
+  overlayRef: RefObject<HTMLElement | null>,
+  contentCount: number,
+) {
   useLayoutEffect(() => {
     const stream = scrollRef.current;
     const overlay = overlayRef.current;
     if (!stream || !overlay) return;
 
     const updateWidth = () => {
-      overlay.style.setProperty("--workspace-scrollbar-width", `${stream.offsetWidth - stream.clientWidth}px`);
+      overlay.style.setProperty(
+        "--workspace-scrollbar-width",
+        `${stream.offsetWidth - stream.clientWidth}px`,
+      );
     };
 
     updateWidth();
@@ -370,12 +497,13 @@ function useWorkspaceScroll(params: {
     if (!element || !params.contentReady) return;
 
     const previous = previousMetricsRef.current;
-    const shouldInitialScroll = initialScrolledSessionRef.current !== params.sessionId;
+    const shouldInitialScroll =
+      initialScrolledSessionRef.current !== params.sessionId;
     const olderContentPrepended = Boolean(
       previous &&
-        previous.sessionId === params.sessionId &&
-        previous.firstContentId !== params.firstContentId &&
-        params.contentCount > previous.contentCount
+      previous.sessionId === params.sessionId &&
+      previous.firstContentId !== params.firstContentId &&
+      params.contentCount > previous.contentCount,
     );
 
     if (shouldInitialScroll) {
@@ -383,23 +511,35 @@ function useWorkspaceScroll(params: {
       initialScrolledSessionRef.current = params.sessionId;
       followingTargetRef.current = true;
     } else if (olderContentPrepended && previous) {
-      element.scrollTop = element.scrollHeight - previous.scrollHeight + previous.scrollTop;
+      element.scrollTop =
+        element.scrollHeight - previous.scrollHeight + previous.scrollTop;
     } else if (followingTargetRef.current) {
       scrollToLatestMessage(element, params.latestMessageAnchorRef.current);
     }
 
     remember(false);
-  }, [params.contentCount, params.contentReady, params.firstContentId, params.scrollRef, params.sessionId]);
+  }, [
+    params.contentCount,
+    params.contentReady,
+    params.firstContentId,
+    params.scrollRef,
+    params.sessionId,
+  ]);
 
   function handleScroll() {
     const element = params.scrollRef.current;
     if (!element) return;
-    followingTargetRef.current = isNearScrollTarget(element, params.latestMessageAnchorRef.current);
+    followingTargetRef.current = isNearScrollTarget(
+      element,
+      params.latestMessageAnchorRef.current,
+    );
   }
 
   function isAtBottom() {
     const element = params.scrollRef.current;
-    return element ? isNearScrollTarget(element, params.latestMessageAnchorRef.current) : followingTargetRef.current;
+    return element
+      ? isNearScrollTarget(element, params.latestMessageAnchorRef.current)
+      : followingTargetRef.current;
   }
 
   function remember(updateFollowing = true) {
@@ -410,22 +550,36 @@ function useWorkspaceScroll(params: {
       firstContentId: params.firstContentId,
       contentCount: params.contentCount,
       scrollHeight: element.scrollHeight,
-      scrollTop: element.scrollTop
+      scrollTop: element.scrollTop,
     };
-    if (updateFollowing) followingTargetRef.current = isNearScrollTarget(element, params.latestMessageAnchorRef.current);
+    if (updateFollowing)
+      followingTargetRef.current = isNearScrollTarget(
+        element,
+        params.latestMessageAnchorRef.current,
+      );
   }
 
   function alignToTargetIfFollowing() {
     const element = params.scrollRef.current;
     if (!element) return;
-    if (followingTargetRef.current) scrollToLatestMessage(element, params.latestMessageAnchorRef.current);
+    if (followingTargetRef.current)
+      scrollToLatestMessage(element, params.latestMessageAnchorRef.current);
     remember(false);
   }
 
-  return { alignToTargetIfFollowing, handleScroll, isNearBottom: isAtBottom, remember };
+  return {
+    alignToTargetIfFollowing,
+    handleScroll,
+    isNearBottom: isAtBottom,
+    remember,
+  };
 }
 
-function scrollToLatestMessage(scrollElement: HTMLElement, latestMessage: HTMLElement | null, behavior?: ScrollBehavior) {
+function scrollToLatestMessage(
+  scrollElement: HTMLElement,
+  latestMessage: HTMLElement | null,
+  behavior?: ScrollBehavior,
+) {
   if (!latestMessage) {
     if (behavior) {
       scrollElement.scrollTo({ top: scrollElement.scrollHeight, behavior });
@@ -443,9 +597,20 @@ function scrollToLatestMessage(scrollElement: HTMLElement, latestMessage: HTMLEl
   scrollElement.scrollTop = top;
 }
 
-function getLatestMessageScrollTop(scrollElement: HTMLElement, latestMessage: HTMLElement) {
-  const messageTop = latestMessage.getBoundingClientRect().top - scrollElement.getBoundingClientRect().top + scrollElement.scrollTop;
-  return messageTop - scrollElement.clientHeight + getScrollPaddingBottom(scrollElement) + scrollTargetGap;
+function getLatestMessageScrollTop(
+  scrollElement: HTMLElement,
+  latestMessage: HTMLElement,
+) {
+  const messageTop =
+    latestMessage.getBoundingClientRect().top -
+    scrollElement.getBoundingClientRect().top +
+    scrollElement.scrollTop;
+  return (
+    messageTop -
+    scrollElement.clientHeight +
+    getScrollPaddingBottom(scrollElement) +
+    scrollTargetGap
+  );
 }
 
 function getScrollPaddingBottom(element: HTMLElement) {
@@ -453,9 +618,16 @@ function getScrollPaddingBottom(element: HTMLElement) {
 }
 
 function scrollToImage(scrollElement: HTMLElement, image: HTMLElement) {
-  const imageTop = image.getBoundingClientRect().top - scrollElement.getBoundingClientRect().top + scrollElement.scrollTop;
-  const scrollPaddingTop = Number.parseFloat(getComputedStyle(scrollElement).scrollPaddingTop) || 0;
-  scrollElement.scrollTo({ top: Math.max(0, imageTop - scrollPaddingTop - scrollTargetGap), behavior: "smooth" });
+  const imageTop =
+    image.getBoundingClientRect().top -
+    scrollElement.getBoundingClientRect().top +
+    scrollElement.scrollTop;
+  const scrollPaddingTop =
+    Number.parseFloat(getComputedStyle(scrollElement).scrollPaddingTop) || 0;
+  scrollElement.scrollTo({
+    top: Math.max(0, imageTop - scrollPaddingTop - scrollTargetGap),
+    behavior: "smooth",
+  });
 }
 
 function ImageCard(props: {
@@ -467,6 +639,7 @@ function ImageCard(props: {
   onTogglePinned: (image: ImageEntity) => void;
   onOverlay: (id: string | undefined) => void;
 }) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState<string>();
   const [isLoaded, setIsLoaded] = useState(false);
   const [isNarrowerThanPreview, setIsNarrowerThanPreview] = useState(false);
@@ -485,7 +658,8 @@ function ImageCard(props: {
     const preview = image?.parentElement;
     if (!image || !preview) return;
 
-    const updateWidth = () => setIsNarrowerThanPreview(image.clientWidth < preview.clientWidth);
+    const updateWidth = () =>
+      setIsNarrowerThanPreview(image.clientWidth < preview.clientWidth);
     const observer = new ResizeObserver(updateWidth);
     observer.observe(image);
     observer.observe(preview);
@@ -507,15 +681,27 @@ function ImageCard(props: {
   }
 
   return (
-    <figure id={`image-${props.image.id}`} className={`${props.overlayActive ? "image-card overlay embedded" : "image-card embedded"}${isNarrowerThanPreview ? " narrower-than-preview" : ""}`}>
-      <button type="button" className="image-preview-button" aria-label="Bild als Overlay öffnen" onClick={() => props.onOverlay(props.image.id)}>
+    <figure
+      id={`image-${props.image.id}`}
+      className={`${props.overlayActive ? "image-card overlay embedded" : "image-card embedded"}${isNarrowerThanPreview ? " narrower-than-preview" : ""}`}
+    >
+      <button
+        type="button"
+        className="image-preview-button"
+        aria-label={t("workspace.openImage")}
+        onClick={() => props.onOverlay(props.image.id)}
+      >
         {url ? (
           <>
-            <span className="image-preview-backdrop" aria-hidden="true" style={{ backgroundImage: isLoaded ? `url(${url})` : undefined }} />
+            <span
+              className="image-preview-backdrop"
+              aria-hidden="true"
+              style={{ backgroundImage: isLoaded ? `url(${url})` : undefined }}
+            />
             <img
               ref={imageRef}
               src={url}
-              alt={props.image.prompt ?? "Generiertes Bild"}
+              alt={props.image.prompt ?? t("workspace.generatedImage")}
               width={props.image.width}
               height={props.image.height}
               loading="lazy"
@@ -530,14 +716,19 @@ function ImageCard(props: {
         )}
       </button>
       <div className="image-actions d-flex justify-content-start gap-3">
-        <button type="button" className="image-action" aria-label="Bild herunterladen" onClick={download}>
+        <button
+          type="button"
+          className="image-action"
+          aria-label={t("workspace.downloadImage")}
+          onClick={download}
+        >
           <Download size={17} aria-hidden="true" />
         </button>
         {props.onCreateChatFromImage && (
           <button
             type="button"
             className="image-action"
-            aria-label="Neuen Chat mit diesem Bild starten"
+            aria-label={t("workspace.newChatFromImage")}
             disabled={props.isCreatingChatFromImage}
             onClick={() => props.onCreateChatFromImage?.(props.image)}
           >
@@ -546,9 +737,15 @@ function ImageCard(props: {
         )}
         <button
           type="button"
-          className={props.image.pinned ? "image-action active" : "image-action"}
+          className={
+            props.image.pinned ? "image-action active" : "image-action"
+          }
           aria-pressed={Boolean(props.image.pinned)}
-          aria-label={props.image.pinned ? "Bild nicht mehr pinnen" : "Bild pinnen"}
+          aria-label={
+            props.image.pinned
+              ? t("workspace.unpinImage")
+              : t("workspace.pinImage")
+          }
           onClick={() => props.onTogglePinned(props.image)}
         >
           <Pin size={17} aria-hidden="true" />
@@ -564,9 +761,13 @@ function getDownloadFilename(image: ImageEntity): string {
 
 function formatDownloadTimestamp(value: string): string {
   const timestamp = value.replace(/\D/g, "").slice(0, 14);
-  if (timestamp.length === 14) return `${timestamp.slice(0, 8)}-${timestamp.slice(8)}`;
+  if (timestamp.length === 14)
+    return `${timestamp.slice(0, 8)}-${timestamp.slice(8)}`;
 
-  const fallbackTimestamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+  const fallbackTimestamp = new Date()
+    .toISOString()
+    .replace(/\D/g, "")
+    .slice(0, 14);
   return `${fallbackTimestamp.slice(0, 8)}-${fallbackTimestamp.slice(8)}`;
 }
 

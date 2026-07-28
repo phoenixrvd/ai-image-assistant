@@ -1,6 +1,8 @@
 import { db } from "../database";
 import type { AppOptionEntity, JsonValue, ThemeMode } from "../entities";
 import { nowIso } from "../id";
+import { normalizeLanguage } from "../../i18n/language";
+import type { AppLanguage } from "../../i18n/types";
 
 export const appOptionsRepository = {
   async get<T extends JsonValue>(key: string): Promise<T | undefined> {
@@ -18,7 +20,14 @@ export const appOptionsRepository = {
     return (await this.get<ThemeMode>("theme")) ?? "system";
   },
 
+  async getLanguage(): Promise<AppLanguage | undefined> {
+    return normalizeLanguage(await this.get<string>("language"));
+  },
+
   async getDefaultImageModelId(): Promise<string | undefined> {
-    return (await this.get<string>("defaultImageModelId")) ?? (await this.get<string>("activeImageModelId"));
-  }
+    return (
+      (await this.get<string>("defaultImageModelId")) ??
+      (await this.get<string>("activeImageModelId"))
+    );
+  },
 };

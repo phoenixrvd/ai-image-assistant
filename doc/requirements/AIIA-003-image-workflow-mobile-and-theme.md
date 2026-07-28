@@ -5,59 +5,74 @@ state: implemented
 # AIIA-003: Image Workflow, Mobile Behavior, and Theme
 
 ## Context
+
 This requirement defines image presentation, per-image actions, prompt variation behavior, mobile-first usage, and theme support.
 
 ## Assumptions
+
 - None
 
 ## Open Questions
+
 - None
 
 ## Requirements
 
 ### Show generated images as the primary output
+
 **Type:** Non-functional  
 **Description:** The system must present generated images as the primary visible output of the workflow.  
 **Acceptance Criteria:**
+
 - Generated images are documented as clearly visible in the main workspace.
 - Supporting controls do not replace the visual focus on generated images.
 
 ### Show the model used for each generated result
+
 **Type:** Functional  
 **Description:** The system must keep the model origin of generated results traceable so users can compare results with the model that produced them at a later time.  
 **Acceptance Criteria:**
+
 - The existing result metadata below a generated image shows the model used for that generation next to the generation time.
 - The displayed model is resolved from the historical generation record and is not replaced when the active chat model changes.
 - The model metadata uses the same visual styling as the existing time metadata.
 - If a historical model is no longer available in the static model registry, its stored model ID remains visible as a fallback.
 
 ### Support comparison of multiple generated images
+
 **Type:** Functional  
 **Description:** The system must present multiple generated images in a way that supports comparison.  
 **Acceptance Criteria:**
+
 - Multiple generated images can appear within the same session context.
 - The documented image presentation requires good comparability between results.
 
 ### Attach actions directly to each image
+
 **Type:** Functional  
 **Description:** The system must place image actions directly on or below the related image.  
 **Acceptance Criteria:**
+
 - Image actions are documented per image instead of as global controls.
 - A user does not need to search another UI area for actions on a selected image.
 
 ### Start an independent chat from an image
+
 **Type:** Functional  
 **Description:** The system must let users start a new independent chat from each image with an available historical generation request.  
 **Acceptance Criteria:**
+
 - The action is available directly on the individual image, so a user can choose one result from a multi-image generation.
 - The action creates the independent chat described in AIIA-006.
 - The action is unavailable when the historical request or source message required to restore the image settings is unavailable.
 - While the new chat is being created, repeated activations are prevented.
 
 ### Provide direct download for each image
+
 **Type:** Functional  
 **Description:** The system must provide a direct download action for each generated image.  
 **Acceptance Criteria:**
+
 - Each generated image includes a download action.
 - The documented download action allows direct saving of the selected image.
 - Downloaded image filenames are normalized as `aiia-<chat-prefix>-YYYYMMDD-HHMMSS.ext`.
@@ -66,9 +81,11 @@ This requirement defines image presentation, per-image actions, prompt variation
 - The original image file extension is preserved as `ext`.
 
 ### Provide pin for each image
+
 **Type:** Functional  
 **Description:** The system must provide a pin action for each generated image.  
 **Acceptance Criteria:**
+
 - Each generated image includes a pin action.
 - The documented pin action marks or highlights the selected image for later use.
 - The prompt controls show a pin navigation control with the number of pinned images in the current chat.
@@ -77,9 +94,11 @@ This requirement defines image presentation, per-image actions, prompt variation
 - After the last pinned image, the next activation scrolls to the end of the chat; the following activation resumes at the first pinned image.
 
 ### Provide overlay for each image
+
 **Type:** Functional  
 **Description:** The system must provide an overlay action for each generated image and allow browsing generated images inside the overlay.  
 **Acceptance Criteria:**
+
 - Each generated image includes an overlay action.
 - The documented overlay action uses the selected image as a visual reference or comparison layer.
 - When multiple images are available in the current chat, the overlay allows switching to the previous or next image.
@@ -92,30 +111,38 @@ This requirement defines image presentation, per-image actions, prompt variation
 - The overlay allows pinch-to-zoom only on the displayed image on touch-capable screens; the rest of the application must not become zoomable for this feature.
 
 ### Keep image actions compact and understandable
+
 **Type:** Non-functional  
 **Description:** The system must keep image actions compact and understandable through clear icons or short labels.  
 **Acceptance Criteria:**
+
 - The documented image actions may use icons.
 - The documented image actions remain understandable when icons are used.
 
 ### Support fast prompt variation
+
 **Type:** Functional  
 **Description:** The system must support creating a new attempt by adjusting an existing prompt.  
 **Acceptance Criteria:**
+
 - The documented workflow supports quick variants from the current prompt.
 - The documented workflow does not require rewriting the prompt from scratch for each attempt.
 
 ### Keep prompt history traceable within a session
+
 **Type:** Functional  
 **Description:** The system must keep the prompt history of the current session traceable.  
 **Acceptance Criteria:**
+
 - The documented session flow includes traceable prompt history.
 - A user can follow earlier prompt attempts within the same session.
 
 ### Persist failed generation snapshots without failed chat history entries
+
 **Type:** Functional  
 **Description:** The system must persist an immutable technical generation-request snapshot at submit time, including failed attempts, without creating visible chat history entries for failed attempts.  
 **Acceptance Criteria:**
+
 - A generation request snapshot is persisted immediately when submission starts.
 - The snapshot contains the prompt and effective generation parameters at submit time.
 - If generation fails, the request is marked as failed and may store an error message.
@@ -126,18 +153,22 @@ This requirement defines image presentation, per-image actions, prompt variation
 - The error is visible to the user for the active chat only.
 
 ### Repeat an earlier prompt from current session history
+
 **Type:** Functional  
 **Description:** The system must allow a user to bring an earlier prompt from the current session history back into the prompt input without retyping it, so it can be started again unchanged.  
 **Acceptance Criteria:**
+
 - A user can select any earlier prompt from the current session history and bring it back into the prompt input.
 - The repeated prompt can be brought back into the prompt input without manual re-entry.
 - The user can start the repeated prompt again unchanged from the prompt input.
 - When the repeated prompt is submitted, it appears as a new attempt in the current session history.
 
 ### Delete a message from current session history
+
 **Type:** Functional  
 **Description:** The system must allow a user to delete a message from the current session history.  
 **Acceptance Criteria:**
+
 - Each message in the current session history includes a delete action.
 - The delete action is placed before the prompt-repeat action in the message controls.
 - The system asks for confirmation before deleting the message.
@@ -146,10 +177,13 @@ This requirement defines image presentation, per-image actions, prompt variation
 - Related generation records for the deleted message are removed from local persistence.
 
 ### Support chat-specific style and rule instructions
+
 **Type:** Functional  
 **Description:** The system must allow users to define style and rule instructions for the current chat that are applied to image generation prompts in that chat.  
 **Acceptance Criteria:**
-- A user can enter chat-specific image instructions labeled "Stil & Regeln".
+
+- A user can enter chat-specific image instructions with a localized label: `Stil & Regeln` in German and `Style & Rules` in English.
+- Changing the application language does not translate or modify the stored image instructions.
 - The instructions are stored with the current chat and remain available after reload.
 - The instructions are applied to image generation requests in that chat.
 - The visible user prompt remains editable separately from the chat-specific instructions.
@@ -157,46 +191,58 @@ This requirement defines image presentation, per-image actions, prompt variation
 - Automatic chat title generation is not affected by the image instructions.
 
 ### Design for mobile first
+
 **Type:** Constraint  
 **Description:** The system must prioritize small-screen usability for the image generation workflow.  
 **Acceptance Criteria:**
+
 - Prompt entry, image results, and per-image actions are documented for small-screen use.
 - The documented concept excludes a desktop-only image workflow that is only scaled down.
 
 ### Keep the core generation path quickly reachable on mobile
+
 **Type:** Non-functional  
 **Description:** On mobile, the path from prompt entry to image generation must stay quickly reachable.  
 **Acceptance Criteria:**
+
 - The documented mobile flow keeps prompt entry quickly accessible.
 - Permanently visible side areas do not block the main generation path.
 
 ### Keep image actions reachable on mobile
+
 **Type:** Non-functional  
 **Description:** On mobile, image actions must remain reachable without pushing images out of focus.  
 **Acceptance Criteria:**
+
 - Image actions remain available on small screens.
 - The documented mobile UI avoids crowding out images with too many persistent controls.
 
 ### Improve mobile request stability during active generation
+
 **Type:** Non-functional  
 **Description:** During an active image generation request, the system should reduce accidental interruption risk on mobile devices by using the Screen Wake Lock API when supported, without introducing backend jobs or background processing.  
 **Acceptance Criteria:**
+
 - When image generation starts, the system attempts to acquire a `screen` wake lock if `navigator.wakeLock` is available.
 - If wake lock acquisition fails or is unsupported, generation continues without functional degradation.
 - The wake lock is released immediately after the generation request completes (success or failure).
 - No server-side queue, job worker, or background processing is introduced by this behavior.
 
 ### Support light and dark themes
+
 **Type:** Functional  
 **Description:** The system must support both light and dark themes.  
 **Acceptance Criteria:**
+
 - The documented theme behavior includes a light theme.
 - The documented theme behavior includes a dark theme.
 
 ### Show generation progress feedback
+
 **Type:** Functional  
 **Description:** The system must show a visual progress indicator during image generation, based on an estimated loading time for the active model.  
 **Acceptance Criteria:**
+
 - The send button displays a progress ring while an image generation is running.
 - The progress is derived from the estimated loading time of the active model.
 - The progress reaches at most 95% while the request is still running.
@@ -204,9 +250,11 @@ This requirement defines image presentation, per-image actions, prompt variation
 - On a failed request, the progress resets immediately without jumping to 100%.
 
 ### Estimate model loading time from previous generations
+
 **Type:** Functional  
 **Description:** The system must persist an estimated loading time per provider plus model name combination to fill the progress indicator realistically.  
 **Acceptance Criteria:**
+
 - An estimated loading time in seconds is stored locally per provider plus model name combination.
 - If no estimate exists for a model, a fallback estimate of 30 seconds is used.
 - After the first successful image generation with a model, a record is created using the actually measured duration.
@@ -214,9 +262,11 @@ This requirement defines image presentation, per-image actions, prompt variation
 - Failed generations do not update the stored estimate.
 
 ### Continue generation while switching chats
+
 **Type:** Functional  
 **Description:** An image generation must continue while the user navigates to another chat in the same browser tab.  
 **Acceptance Criteria:**
+
 - The running generation remains associated with its originating chat ID.
 - Returning to that chat shows the current progress and running state.
 - A generation in one chat does not block generation in another chat.
@@ -224,9 +274,11 @@ This requirement defines image presentation, per-image actions, prompt variation
 - The runtime job, abort controller, start time, and progress are held in memory only and are not restored after reload.
 
 ### Cancel an active generation
+
 **Type:** Functional  
 **Description:** The active generation can be cancelled from the send control.  
 **Acceptance Criteria:**
+
 - While generating, the send control shows a stop icon instead of the send icon.
 - Clicking the control aborts the provider request.
 - A cancelled generation does not create a visible message, result, or image.

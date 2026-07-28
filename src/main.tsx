@@ -5,11 +5,14 @@ import { HashRouter } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
 import { App } from "./app/App";
 import { queryClient } from "./app/queryClient";
+import { initializeI18n } from "./i18n/i18n";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
 
 let reloadingForServiceWorker = false;
 let updateServiceWorker: ReturnType<typeof registerSW> | undefined;
+
+await initializeI18n();
 
 updateServiceWorker = registerSW({
   immediate: true,
@@ -26,7 +29,7 @@ updateServiceWorker = registerSW({
   },
   onRegisteredSW(_swScriptUrl, registration) {
     void registration?.update();
-  }
+  },
 });
 
 createRoot(document.getElementById("root")!).render(
@@ -36,5 +39,5 @@ createRoot(document.getElementById("root")!).render(
         <App />
       </HashRouter>
     </QueryClientProvider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

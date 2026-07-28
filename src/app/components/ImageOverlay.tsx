@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type MouseEvent, type TouchEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type TouchEvent,
+} from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ImageEntity } from "../../db/entities";
 
@@ -11,7 +18,14 @@ type PinchState = { startDistance: number; startScale: number };
 type PanState = { startPoint: TouchPoint; startOffset: TouchPoint };
 type TouchLike = { clientX: number; clientY: number };
 
-export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; onClose: () => void; onPrevious: () => void; onNext: () => void }) {
+export function ImageOverlay(props: {
+  image: ImageEntity;
+  canNavigate: boolean;
+  onClose: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState<string>();
   const [zoomScale, setZoomScale] = useState(minZoomScale);
   const [panOffset, setPanOffset] = useState<TouchPoint>({ x: 0, y: 0 });
@@ -84,7 +98,7 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
       const [first, second] = [event.touches[0], event.touches[1]];
       pinchStateRef.current = {
         startDistance: readDistance(first, second),
-        startScale: zoomScale
+        startScale: zoomScale,
       };
       touchStartRef.current = undefined;
       panStateRef.current = undefined;
@@ -94,20 +108,30 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
 
     if (event.touches.length === 1 && zoomScale > minZoomScale) {
       panStateRef.current = {
-        startPoint: { x: event.touches[0].clientX, y: event.touches[0].clientY },
-        startOffset: panOffset
+        startPoint: {
+          x: event.touches[0].clientX,
+          y: event.touches[0].clientY,
+        },
+        startOffset: panOffset,
       };
       touchStartRef.current = undefined;
       swipedRef.current = false;
       return;
     }
 
-    if (event.touches.length !== 1 || zoomScale > minZoomScale || !props.canNavigate) {
+    if (
+      event.touches.length !== 1 ||
+      zoomScale > minZoomScale ||
+      !props.canNavigate
+    ) {
       touchStartRef.current = undefined;
       return;
     }
 
-    touchStartRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+    touchStartRef.current = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY,
+    };
     swipedRef.current = false;
   }
 
@@ -119,21 +143,27 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
       const currentDistance = readDistance(first, second);
       if (pinchState.startDistance <= 0) return;
 
-      const nextScale = clampZoom((currentDistance / pinchState.startDistance) * pinchState.startScale);
+      const nextScale = clampZoom(
+        (currentDistance / pinchState.startDistance) * pinchState.startScale,
+      );
       setZoomScale(nextScale);
       if (nextScale === minZoomScale) setPanOffset({ x: 0, y: 0 });
       return;
     }
 
     const panState = panStateRef.current;
-    if (!panState || event.touches.length !== 1 || zoomScale <= minZoomScale) return;
+    if (!panState || event.touches.length !== 1 || zoomScale <= minZoomScale)
+      return;
 
     if (event.cancelable) event.preventDefault();
     const touch = event.touches[0];
     const deltaX = touch.clientX - panState.startPoint.x;
     const deltaY = touch.clientY - panState.startPoint.y;
     if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) swipedRef.current = true;
-    setPanOffset({ x: panState.startOffset.x + deltaX, y: panState.startOffset.y + deltaY });
+    setPanOffset({
+      x: panState.startOffset.x + deltaX,
+      y: panState.startOffset.y + deltaY,
+    });
   }
 
   function handleTouchEnd(event: TouchEvent<HTMLImageElement>) {
@@ -150,7 +180,11 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
 
     const deltaX = end.x - start.x;
     const deltaY = end.y - start.y;
-    if (Math.abs(deltaX) < swipeThreshold || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    if (
+      Math.abs(deltaX) < swipeThreshold ||
+      Math.abs(deltaX) < Math.abs(deltaY)
+    )
+      return;
 
     swipedRef.current = true;
     if (deltaX > 0) showPreviousImage();
@@ -186,13 +220,22 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
   if (!url) return null;
 
   return (
-    <div className="image-overlay" role="dialog" aria-modal="true" aria-label="Bildvorschau" onClick={closeOverlay}>
-      <div className="image-overlay-blur" style={{ backgroundImage: `url(${url})` }} />
+    <div
+      className="image-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("overlay.preview")}
+      onClick={closeOverlay}
+    >
+      <div
+        className="image-overlay-blur"
+        style={{ backgroundImage: `url(${url})` }}
+      />
       {props.canNavigate && (
         <button
           type="button"
           className="image-overlay-nav previous"
-          aria-label="Vorheriges Bild"
+          aria-label={t("overlay.previous")}
           onClick={(event) => {
             event.stopPropagation();
             showPreviousImage();
@@ -205,8 +248,10 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
         <img
           className="image-overlay-preview image-overlay-preview-current"
           src={url}
-          alt={props.image.prompt ?? "Bildvorschau"}
-          style={{ transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomScale})` }}
+          alt={props.image.prompt ?? t("overlay.preview")}
+          style={{
+            transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomScale})`,
+          }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -218,7 +263,7 @@ export function ImageOverlay(props: { image: ImageEntity; canNavigate: boolean; 
         <button
           type="button"
           className="image-overlay-nav next"
-          aria-label="Nächstes Bild"
+          aria-label={t("overlay.next")}
           onClick={(event) => {
             event.stopPropagation();
             showNextImage();

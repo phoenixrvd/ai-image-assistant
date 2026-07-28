@@ -1,4 +1,5 @@
 import { ArrowLeft, Menu, MessageCircle, Settings, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { ChatEntity } from "../../db/entities";
 import { formatMessageDate } from "../appHelpers";
 
@@ -13,6 +14,7 @@ export function ChatNavigation(props: {
   onCreate: () => void;
   onOptions: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const showCloseControl = props.open || props.showCloseControl;
 
   return (
@@ -21,7 +23,9 @@ export function ChatNavigation(props: {
         <strong>Image Assistant</strong>
         <button
           className="btn btn-outline-secondary icon-button nav-toggle"
-          aria-label={showCloseControl ? "Navigation einklappen" : "Navigation ausklappen"}
+          aria-label={
+            showCloseControl ? t("navigation.collapse") : t("navigation.expand")
+          }
           onClick={props.onToggle}
         >
           {showCloseControl ? <ArrowLeft size={18} /> : <Menu size={18} />}
@@ -29,23 +33,47 @@ export function ChatNavigation(props: {
       </div>
       <div className="chat-list">
         {props.chats.map((chat) => (
-          <div key={chat.id} className={chat.id === props.activeChatId ? "chat-item active" : "chat-item"}>
-            <button className="chat-select" onClick={() => props.onSelect(chat.id)}>
+          <div
+            key={chat.id}
+            className={
+              chat.id === props.activeChatId ? "chat-item active" : "chat-item"
+            }
+          >
+            <button
+              className="chat-select"
+              onClick={() => props.onSelect(chat.id)}
+            >
               <span>{chat.title}</span>
-              <small className="message-time">{formatMessageDate(chat.lastMessageAt ?? chat.updatedAt)}</small>
+              <small className="message-time">
+                {formatMessageDate(
+                  chat.lastMessageAt ?? chat.updatedAt,
+                  i18n.language === "de" ? "de" : "en",
+                )}
+              </small>
             </button>
-            <button type="button" className="chat-delete" aria-label={`Chat ${chat.title} löschen`} onClick={() => props.onDelete(chat.id)}>
+            <button
+              type="button"
+              className="chat-delete"
+              aria-label={t("navigation.deleteChat", { title: chat.title })}
+              onClick={() => props.onDelete(chat.id)}
+            >
               <Trash2 size={16} />
             </button>
           </div>
         ))}
       </div>
       <div className="nav-actions d-grid gap-2 mt-auto">
-        <button className="btn btn-primary d-inline-flex align-items-center justify-content-center gap-2" onClick={props.onCreate}>
-          <MessageCircle size={18} /> Neue Sitzung
+        <button
+          className="btn btn-primary d-inline-flex align-items-center justify-content-center gap-2"
+          onClick={props.onCreate}
+        >
+          <MessageCircle size={18} /> {t("navigation.newSession")}
         </button>
-        <button className="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-2" onClick={props.onOptions}>
-          <Settings size={18} /> Optionen
+        <button
+          className="btn btn-outline-secondary d-inline-flex align-items-center justify-content-center gap-2"
+          onClick={props.onOptions}
+        >
+          <Settings size={18} /> {t("navigation.options")}
         </button>
       </div>
     </aside>

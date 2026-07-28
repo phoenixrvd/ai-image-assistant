@@ -1,14 +1,19 @@
 import { Fragment, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Camera, Image as ImageIcon, Upload } from "lucide-react";
 import type { ChatEntity, ImageEntity } from "../../db/entities";
-import { getModelLabel, modelRequiresReferenceImages, modelSupportsReferenceImages } from "../../features/generation/models/registry";
+import {
+  getModelLabel,
+  modelRequiresReferenceImages,
+  modelSupportsReferenceImages,
+} from "../../features/generation/models/registry";
 import type { StaticModel } from "../../features/generation/models/types";
 import type { UploadedReference } from "../appHelpers";
 
 const aspectRatios = [
   { id: "square", label: "1:1" },
   { id: "portrait", label: "9:16" },
-  { id: "landscape", label: "16:9" }
+  { id: "landscape", label: "16:9" },
 ];
 
 export function ConfigPanel(props: {
@@ -31,14 +36,23 @@ export function ConfigPanel(props: {
   onRenameChat: (title: string) => void;
   onSaveImageInstructions: (instructions: string) => void;
 }) {
+  const { t } = useTranslation();
   const storedImageInstructions = readImageInstructions(props.activeChat);
   const [title, setTitle] = useState(props.activeChat?.title ?? "");
-  const [imageInstructions, setImageInstructions] = useState(storedImageInstructions);
+  const [imageInstructions, setImageInstructions] = useState(
+    storedImageInstructions,
+  );
   const referencesEnabled = modelSupportsReferenceImages(props.activeModel);
   const referencesRequired = modelRequiresReferenceImages(props.activeModel);
 
-  useEffect(() => setTitle(props.activeChat?.title ?? ""), [props.activeChat?.title]);
-  useEffect(() => setImageInstructions(storedImageInstructions), [props.activeChat?.id, storedImageInstructions]);
+  useEffect(
+    () => setTitle(props.activeChat?.title ?? ""),
+    [props.activeChat?.title],
+  );
+  useEffect(
+    () => setImageInstructions(storedImageInstructions),
+    [props.activeChat?.id, storedImageInstructions],
+  );
 
   return (
     <aside className={`config-panel ${props.open ? "open" : ""}`}>
@@ -48,7 +62,7 @@ export function ConfigPanel(props: {
             className="form-control"
             id="chat-title"
             value={title}
-            placeholder="Chatname"
+            placeholder={t("config.chatName")}
             disabled={!props.activeChatId}
             onChange={(event) => {
               const nextTitle = event.target.value;
@@ -56,7 +70,7 @@ export function ConfigPanel(props: {
               if (nextTitle.trim()) props.onRenameChat(nextTitle.trim());
             }}
           />
-          <label htmlFor="chat-title">Chatname</label>
+          <label htmlFor="chat-title">{t("config.chatName")}</label>
         </div>
       </div>
       <div className="panel-section">
@@ -67,14 +81,14 @@ export function ConfigPanel(props: {
             value={imageInstructions}
             disabled={!props.activeChatId}
             rows={5}
-            placeholder="z. B. analoger Filmlook, reduzierte Farben, keine Schrift im Bild"
+            placeholder={t("config.stylePlaceholder")}
             onChange={(event) => {
               const nextInstructions = event.target.value;
               setImageInstructions(nextInstructions);
               props.onSaveImageInstructions(nextInstructions);
             }}
           />
-          <label htmlFor="image-instructions">Stil &amp; Regeln</label>
+          <label htmlFor="image-instructions">{t("config.styleRules")}</label>
         </div>
       </div>
       <PromptOptions
@@ -88,35 +102,63 @@ export function ConfigPanel(props: {
       />
       <div className="panel-section">
         <div className="form-floating">
-          <select className="form-select" id="active-image-model" value={props.activeModel?.id ?? ""} disabled={props.imageModels.length === 0} onChange={(event) => props.onActiveModel(event.target.value)}>
-            {props.imageModels.length === 0 ? <option value="">Kein aktives Bildmodell</option> : null}
+          <select
+            className="form-select"
+            id="active-image-model"
+            value={props.activeModel?.id ?? ""}
+            disabled={props.imageModels.length === 0}
+            onChange={(event) => props.onActiveModel(event.target.value)}
+          >
+            {props.imageModels.length === 0 ? (
+              <option value="">{t("config.noActiveModel")}</option>
+            ) : null}
             {props.imageModels.map((model) => (
               <option key={model.id} value={model.id}>
                 {getModelLabel(model)}
               </option>
             ))}
           </select>
-          <label htmlFor="active-image-model">Aktives Modell</label>
+          <label htmlFor="active-image-model">{t("config.activeModel")}</label>
         </div>
       </div>
       <div className="panel-section">
         <div className="form-floating">
-          <select className="form-select" id="image-count" value={props.imageCount} onChange={(event) => props.onImageCount(Number(event.target.value))}>
+          <select
+            className="form-select"
+            id="image-count"
+            value={props.imageCount}
+            onChange={(event) => props.onImageCount(Number(event.target.value))}
+          >
             {[1, 2, 3, 4].map((count) => (
               <option key={count} value={count}>
                 {count}
               </option>
             ))}
           </select>
-          <label htmlFor="image-count">Bilderanzahl</label>
+          <label htmlFor="image-count">{t("config.imageCount")}</label>
         </div>
       </div>
       <div className="panel-section">
-        <div className="btn-group w-100" role="group" aria-label="Bildformat">
+        <div
+          className="btn-group w-100"
+          role="group"
+          aria-label={t("config.imageFormat")}
+        >
           {aspectRatios.map((ratio) => (
             <Fragment key={ratio.id}>
-              <input type="radio" className="btn-check" name="ratio" id={`ratio-${ratio.id}`} autoComplete="off" checked={ratio.id === props.aspectRatio} onChange={() => props.onAspectRatio(ratio.id)} />
-              <label className="btn btn-outline-secondary" htmlFor={`ratio-${ratio.id}`}>
+              <input
+                type="radio"
+                className="btn-check"
+                name="ratio"
+                id={`ratio-${ratio.id}`}
+                autoComplete="off"
+                checked={ratio.id === props.aspectRatio}
+                onChange={() => props.onAspectRatio(ratio.id)}
+              />
+              <label
+                className="btn btn-outline-secondary"
+                htmlFor={`ratio-${ratio.id}`}
+              >
                 {ratio.label}
               </label>
             </Fragment>
@@ -141,31 +183,49 @@ function PromptOptions(props: {
   onUploadReferences: (files: File[]) => void;
   onRemoveUploadedReference: (id: string) => void;
 }) {
-  const canUpload = props.referencesEnabled && props.pinnedImages.length + props.uploadedReferences.length < 3;
-  const referenceCount = props.pinnedImages.length + props.uploadedReferences.length;
-  const handleReferenceSelection = (files: FileList | null, input: HTMLInputElement) => {
+  const { t } = useTranslation();
+  const canUpload =
+    props.referencesEnabled &&
+    props.pinnedImages.length + props.uploadedReferences.length < 3;
+  const referenceCount =
+    props.pinnedImages.length + props.uploadedReferences.length;
+  const handleReferenceSelection = (
+    files: FileList | null,
+    input: HTMLInputElement,
+  ) => {
     const selectedFiles = Array.from(files ?? []);
     if (selectedFiles.length === 0) return;
-    const remainingSlots = Math.max(0, 3 - (props.pinnedImages.length + props.uploadedReferences.length));
+    const remainingSlots = Math.max(
+      0,
+      3 - (props.pinnedImages.length + props.uploadedReferences.length),
+    );
     if (remainingSlots === 0) {
-      window.alert("Maximal 3 Referenzbilder erlaubt.");
+      window.alert(t("config.maxReferences"));
       input.value = "";
       return;
     }
     props.onUploadReferences(selectedFiles.slice(0, remainingSlots));
-    if (selectedFiles.length > remainingSlots) window.alert("Nur die ersten 3 Referenzen wurden übernommen.");
+    if (selectedFiles.length > remainingSlots)
+      window.alert(t("config.firstReferences"));
     input.value = "";
   };
   return (
     <div className="prompt-options">
-        <div className={props.referencesEnabled ? "reference-strip" : "reference-strip unsupported"}>
+      <div
+        className={
+          props.referencesEnabled
+            ? "reference-strip"
+            : "reference-strip unsupported"
+        }
+      >
         {props.pinnedImages.map((image) => (
           <ReferenceThumb
             key={image.id}
             active={props.referencesEnabled}
             blob={image.blob}
             onClick={() => {
-              if (window.confirm("Dieses angepinnte Referenzbild entfernen?")) props.onRemovePinnedReference(image.id);
+              if (window.confirm(t("config.removePinned")))
+                props.onRemovePinnedReference(image.id);
             }}
           />
         ))}
@@ -175,12 +235,24 @@ function PromptOptions(props: {
             active={props.referencesEnabled}
             dataUrl={entry.dataUrl}
             onClick={() => {
-              if (window.confirm("Dieses hochgeladene Referenzbild entfernen?")) props.onRemoveUploadedReference(entry.id);
+              if (window.confirm(t("config.removeUploaded")))
+                props.onRemoveUploadedReference(entry.id);
             }}
           />
         ))}
-        <div className={canUpload ? "btn-group upload-reference-group" : "btn-group upload-reference-group disabled"} role="group" aria-label="Referenzbild hinzufügen">
-          <label className="btn upload-reference-button" title="Bild hochladen">
+        <div
+          className={
+            canUpload
+              ? "btn-group upload-reference-group"
+              : "btn-group upload-reference-group disabled"
+          }
+          role="group"
+          aria-label={t("config.addReference")}
+        >
+          <label
+            className="btn upload-reference-button"
+            title={t("config.uploadImage")}
+          >
             <Upload size={16} />
             <input
               type="file"
@@ -189,11 +261,17 @@ function PromptOptions(props: {
               hidden
               disabled={!canUpload}
               onChange={(event) => {
-                handleReferenceSelection(event.target.files, event.currentTarget);
+                handleReferenceSelection(
+                  event.target.files,
+                  event.currentTarget,
+                );
               }}
             />
           </label>
-          <label className="btn upload-reference-button" title="Kamera öffnen">
+          <label
+            className="btn upload-reference-button"
+            title={t("config.openCamera")}
+          >
             <Camera size={16} />
             <input
               type="file"
@@ -202,19 +280,34 @@ function PromptOptions(props: {
               hidden
               disabled={!canUpload}
               onChange={(event) => {
-                handleReferenceSelection(event.target.files, event.currentTarget);
+                handleReferenceSelection(
+                  event.target.files,
+                  event.currentTarget,
+                );
               }}
             />
           </label>
         </div>
       </div>
-      {!props.referencesEnabled && <small className="reference-warning">Das aktive Modell unterstützt keine Referenzbilder.</small>}
-      {props.referencesEnabled && props.referencesRequired && referenceCount === 0 && <small className="reference-warning">Mindestens ein Referenzbild auswählen.</small>}
+      {!props.referencesEnabled && (
+        <small className="reference-warning">{t("config.unsupported")}</small>
+      )}
+      {props.referencesEnabled &&
+        props.referencesRequired &&
+        referenceCount === 0 && (
+          <small className="reference-warning">{t("config.required")}</small>
+        )}
     </div>
   );
 }
 
-function ReferenceThumb(props: { active: boolean; onClick: () => void; blob?: Blob; dataUrl?: string }) {
+function ReferenceThumb(props: {
+  active: boolean;
+  onClick: () => void;
+  blob?: Blob;
+  dataUrl?: string;
+}) {
+  const { t } = useTranslation();
   const [url, setUrl] = useState<string>();
 
   useEffect(() => {
@@ -232,9 +325,14 @@ function ReferenceThumb(props: { active: boolean; onClick: () => void; blob?: Bl
   }, [props.blob, props.dataUrl]);
 
   return (
-    <button type="button" className={props.active ? "reference-thumb active" : "reference-thumb"} onClick={props.onClick} aria-pressed={props.active}>
+    <button
+      type="button"
+      className={props.active ? "reference-thumb active" : "reference-thumb"}
+      onClick={props.onClick}
+      aria-pressed={props.active}
+    >
       {url ? (
-        <img src={url} alt="Referenzbild" />
+        <img src={url} alt={t("config.referenceImage")} />
       ) : (
         <div className="reference-thumb-fallback">
           <ImageIcon size={14} />

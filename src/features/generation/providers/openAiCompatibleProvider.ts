@@ -1,7 +1,17 @@
-import type { JsonValue, ModelType, ProviderConfigEntity } from "../../../db/entities";
+import type {
+  JsonValue,
+  ModelType,
+  ProviderConfigEntity,
+} from "../../../db/entities";
 import type { StaticModel } from "../models/types";
-import type { ImageGenerationInput, NormalizedGenerationOutput, ProviderAdapter, TextGenerationInput } from "./types";
+import type {
+  ImageGenerationInput,
+  NormalizedGenerationOutput,
+  ProviderAdapter,
+  TextGenerationInput,
+} from "./types";
 import { responseToSafeError } from "./sanitize";
+import i18n from "../../../i18n/i18n";
 
 interface ProviderImageItem {
   b64_json?: string;
@@ -26,20 +36,28 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
     return type === "image" || type === "image-edit" || type === "text";
   }
 
-  async generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput, signal?: AbortSignal): Promise<NormalizedGenerationOutput> {
+  async generateImage(
+    model: StaticModel,
+    providerConfig: ProviderConfigEntity,
+    input: ImageGenerationInput,
+    signal?: AbortSignal,
+  ): Promise<NormalizedGenerationOutput> {
     if (input.references?.length) {
       return this.generateImageEdit(model, providerConfig, input, signal);
     }
 
-    const response = await fetch(`${providerConfig.baseUrl.replace(/\/$/, "")}/images/generations`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
-        "Content-Type": "application/json"
+    const response = await fetch(
+      `${providerConfig.baseUrl.replace(/\/$/, "")}/images/generations`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(this.buildBody(model, input)),
+        signal,
       },
-      body: JSON.stringify(this.buildBody(model, input)),
-      signal
-    });
+    );
 
     if (!response.ok) {
       throw new Error(await responseToSafeError(response));
@@ -49,7 +67,12 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
     return this.normalize(payload, signal);
   }
 
-  protected async generateImageEdit(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput, signal?: AbortSignal): Promise<NormalizedGenerationOutput> {
+  protected async generateImageEdit(
+    model: StaticModel,
+    providerConfig: ProviderConfigEntity,
+    input: ImageGenerationInput,
+    signal?: AbortSignal,
+  ): Promise<NormalizedGenerationOutput> {
     const body = new FormData();
     body.append("model", model.providerModelName);
     body.append("prompt", buildImagePrompt(input));
@@ -60,17 +83,24 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
 
     for (const [index, reference] of (input.references ?? []).entries()) {
       const blob = dataUrlToBlob(reference);
-      body.append("image", blob, `reference-${index}.${mimeTypeToExtension(blob.type)}`);
+      body.append(
+        "image",
+        blob,
+        `reference-${index}.${mimeTypeToExtension(blob.type)}`,
+      );
     }
 
-    const response = await fetch(`${providerConfig.baseUrl.replace(/\/$/, "")}/images/edits`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${providerConfig.apiKey ?? ""}`
+    const response = await fetch(
+      `${providerConfig.baseUrl.replace(/\/$/, "")}/images/edits`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
+        },
+        body,
+        signal,
       },
-      body,
-      signal
-    });
+    );
 
     if (!response.ok) {
       throw new Error(await responseToSafeError(response));
@@ -80,46 +110,67 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
     return this.normalize(payload, signal);
   }
 
-  protected buildBody(model: StaticModel, input: ImageGenerationInput): Record<string, JsonValue> {
+  protected buildBody(
+    model: StaticModel,
+    input: ImageGenerationInput,
+  ): Record<string, JsonValue> {
     return {
       model: model.providerModelName,
       prompt: buildImagePrompt(input),
       n: input.imageCount,
       size: mapAspectRatioToSize(input.aspectRatio),
       ...(model.defaultParameters ?? {}),
-      ...(input.parameters ?? {})
+      ...(input.parameters ?? {}),
     };
   }
 
-  protected async normalize(payload: ProviderImageResponse, signal?: AbortSignal): Promise<NormalizedGenerationOutput> {
-    const images = await Promise.all((payload.data ?? []).map((item) => imageItemToBlob(item, signal)));
+  protected async normalize(
+    payload: ProviderImageResponse,
+    signal?: AbortSignal,
+  ): Promise<NormalizedGenerationOutput> {
+    const images = await Promise.all(
+      (payload.data ?? []).map((item) => imageItemToBlob(item, signal)),
+    );
     return { images, rawMetadata: { created: payload.created ?? null } };
   }
 
-  async generateText(model: StaticModel, providerConfig: ProviderConfigEntity, input: TextGenerationInput): Promise<string> {
+  async generateText(
+    model: StaticModel,
+    providerConfig: ProviderConfigEntity,
+    input: TextGenerationInput,
+  ): Promise<string> {
     const userContent = input.image
       ? [
           { type: "text", text: input.prompt },
-          { type: "image_url", image_url: { url: await blobToDataUrl(input.image.blob), detail: "low" } }
+          {
+            type: "image_url",
+            image_url: {
+              url: await blobToDataUrl(input.image.blob),
+              detail: "low",
+            },
+          },
         ]
       : input.prompt;
-    const response = await fetch(`${providerConfig.baseUrl.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
-        "Content-Type": "application/json"
+    const response = await fetch(
+      `${providerConfig.baseUrl.replace(/\/$/, "")}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: model.providerModelName,
+          messages: [
+            { role: "system", content: input.system },
+            { role: "user", content: userContent },
+          ],
+          temperature: 0.2,
+          ...(model.defaultParameters ?? {}),
+          ...(input.parameters ?? {}),
+        }),
       },
-      body: JSON.stringify({
-        model: model.providerModelName,
-        messages: [
-          { role: "system", content: input.system },
-          { role: "user", content: userContent }
-        ],
-        temperature: 0.2,
-        ...(model.defaultParameters ?? {}),
-        ...(input.parameters ?? {})
-      })
-    });
+    );
 
     if (!response.ok) {
       throw new Error(await responseToSafeError(response));
@@ -127,7 +178,7 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
 
     const payload = (await response.json()) as ProviderChatResponse;
     const text = payload.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error("Provider-Antwort enthält keinen Text.");
+    if (!text) throw new Error(i18n.t("errors.providerNoText"));
     return text;
   }
 }
@@ -135,8 +186,14 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.addEventListener("load", () => (typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Bild konnte nicht gelesen werden."))));
-    reader.addEventListener("error", () => reject(reader.error ?? new Error("Bild konnte nicht gelesen werden.")));
+    reader.addEventListener("load", () =>
+      typeof reader.result === "string"
+        ? resolve(reader.result)
+        : reject(new Error(i18n.t("errors.fileRead"))),
+    );
+    reader.addEventListener("error", () =>
+      reject(reader.error ?? new Error(i18n.t("errors.fileRead"))),
+    );
     reader.readAsDataURL(blob);
   });
 }
@@ -145,19 +202,22 @@ export function buildImagePrompt(input: ImageGenerationInput): string {
   const instructions = input.instructions?.trim();
   const prompt = input.prompt.trim();
   if (!instructions) return prompt;
-  return `Stil & Regeln:\n${instructions}\n\nPrompt:\n${prompt}`;
+  return `${i18n.t("config.styleRules")}:\n${instructions}\n\nPrompt:\n${prompt}`;
 }
 
 async function imageItemToBlob(item: ProviderImageItem, signal?: AbortSignal) {
   if (item.b64_json) {
-    return { blob: base64ToBlob(item.b64_json, "image/png"), mimeType: "image/png" };
+    return {
+      blob: base64ToBlob(item.b64_json, "image/png"),
+      mimeType: "image/png",
+    };
   }
   if (item.url) {
     const response = await fetch(item.url, { signal });
     const blob = await response.blob();
     return { blob, mimeType: blob.type || "image/png" };
   }
-  throw new Error("Provider-Antwort enthält kein Bild.");
+  throw new Error(i18n.t("errors.providerNoImage"));
 }
 
 function base64ToBlob(base64: string, mimeType: string): Blob {
@@ -178,10 +238,16 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([decodeURIComponent(data)], { type: mimeType });
 }
 
-function appendFormParameters(body: FormData, parameters: Record<string, JsonValue>) {
+function appendFormParameters(
+  body: FormData,
+  parameters: Record<string, JsonValue>,
+) {
   for (const [key, value] of Object.entries(parameters)) {
     if (value === null || value === undefined) continue;
-    body.append(key, typeof value === "object" ? JSON.stringify(value) : String(value));
+    body.append(
+      key,
+      typeof value === "object" ? JSON.stringify(value) : String(value),
+    );
   }
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const installPromptHandledKey = "pwaInstallPromptHandled";
 
@@ -8,11 +9,17 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function InstallPromptBanner() {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent>();
+  const { t } = useTranslation();
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent>();
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
-    if (isAppInstalled() || window.localStorage.getItem(installPromptHandledKey) === "true") return;
+    if (
+      isAppInstalled() ||
+      window.localStorage.getItem(installPromptHandledKey) === "true"
+    )
+      return;
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -28,7 +35,10 @@ export function InstallPromptBanner() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
@@ -51,18 +61,29 @@ export function InstallPromptBanner() {
   if (!showInstallPrompt || !installPrompt) return null;
 
   return (
-    <section className="install-prompt container-xxl" aria-label="App installieren">
+    <section
+      className="install-prompt container-xxl"
+      aria-label={t("install.label")}
+    >
       <div className="install-prompt-card">
         <div>
-          <strong>AI Image Assistant installieren</strong>
-          <p>Nutze die App wie eine eigene Anwendung mit Icon auf deinem Gerät.</p>
+          <strong>{t("install.title")}</strong>
+          <p>{t("install.description")}</p>
         </div>
         <div className="install-prompt-actions d-flex flex-shrink-0 gap-2">
-          <button className="btn btn-primary" type="button" onClick={() => void installApp()}>
-            Installieren
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => void installApp()}
+          >
+            {t("install.install")}
           </button>
-          <button className="btn btn-outline-secondary" type="button" onClick={dismissInstallPrompt}>
-            Später
+          <button
+            className="btn btn-outline-secondary"
+            type="button"
+            onClick={dismissInstallPrompt}
+          >
+            {t("install.later")}
           </button>
         </div>
       </div>
@@ -71,6 +92,11 @@ export function InstallPromptBanner() {
 }
 
 function isAppInstalled() {
-  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
-  return window.matchMedia("(display-mode: standalone)").matches || navigatorWithStandalone.standalone === true;
+  const navigatorWithStandalone = navigator as Navigator & {
+    standalone?: boolean;
+  };
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    navigatorWithStandalone.standalone === true
+  );
 }

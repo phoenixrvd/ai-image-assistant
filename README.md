@@ -1,31 +1,39 @@
 # AI Image Assistant
 
-AI Image Assistant ist eine lokale, mobil-first gedachte PWA für KI-Bildgenerierung. Die App konzentriert sich auf Prompts, Bildvarianten, Referenzen und das Verwalten erzeugter Ergebnisse.
+[Deutsch](README.de.md)
 
-## Besonderheiten
+AI Image Assistant is a mobile-first PWA for AI-powered image generation. It combines a streamlined prompt workflow with locally managed sessions, reference images, and configurable AI providers.
 
-- arbeitet lokal im Browser auf dem Gerät
-- keine serverseitige Datenspeicherung durch die App
-- lokale Persistenz über IndexedDB
-- Unterstützung für Grok-Image
-- Unterstützung für OpenAI-kompatible Bildmodelle
-- frontend-only Architektur ohne eigenes Backend
+## Features
 
-## Datenschutz und Offline-Konzept
+- Generate images from prompts and refine them through further variations
+- Set image count, aspect ratio, and session-specific style rules
+- Upload reference images or use generated images as references
+- Compare and download results or use them as source images for further editing
+- Manage sessions, prompt history, and results locally
+- Configure xAI/Grok, OpenAI-compatible APIs, and fal.ai
 
-Projektdaten, Einstellungen, Modellkonfigurationen, API-Keys und Ergebnisse werden lokal im Browser gespeichert. Die App betreibt keine eigene serverseitige Datenbank und speichert keine Nutzerdaten auf einem eigenen Server.
+## Usage
 
-Gespeicherte Inhalte und Verwaltungsfunktionen bleiben offline nutzbar. Eine Internetverbindung wird nur benötigt, wenn ein externer KI-Provider aktiv zur Bildgenerierung aufgerufen wird.
+Configure providers with their API URL and API key in the options. You can then start a session, enter a prompt, and select an available image model. Generated results and their prompts remain traceable within the session.
 
-## Entwicklung
+## Data and Privacy
+
+The app has no backend of its own. Settings, API keys, sessions, and images are stored exclusively in the browser using IndexedDB. Generation requests are sent directly from the browser to the configured external AI provider and are subject to that provider's privacy policy.
+
+Stored content and management features remain available offline. Image generation and automatic session naming require an internet connection.
+
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Dokumentation
+## Documentation
 
-Details zu Anforderungen, Architekturentscheidungen und Entwicklungsrichtlinien liegen unter `doc/`.
+- Product requirements: `doc/requirements/`
+- Architecture decisions: `doc/adr/`
+- Development guidelines: `doc/guidelines/`
 
 ![Logo](public/pwa-192x192.png)
