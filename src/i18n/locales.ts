@@ -36,6 +36,12 @@ export const resources = {
         requiredApiKey: "Bitte einen API-Key eingeben.",
         enabled: "Aktiviert",
         activeModels: "Aktive Modelle",
+        models: "Modelle",
+        text: "Text",
+        modelRequired:
+          "Mindestens ein Bildmodell und ein bildfähiges Textmodell müssen aktiviert bleiben.",
+        providerRequired:
+          "Dieser Provider enthält das letzte erforderliche Bild- oder Textmodell.",
         usable: "verwendbar",
         inactive: "inaktiv",
         incomplete: "unvollständig",
@@ -170,6 +176,12 @@ export const resources = {
         requiredApiKey: "Enter an API key.",
         enabled: "Enabled",
         activeModels: "Active models",
+        models: "Models",
+        text: "Text",
+        modelRequired:
+          "At least one image model and one image-capable text model must remain enabled.",
+        providerRequired:
+          "This provider contains the last required image or text model.",
         usable: "usable",
         inactive: "inactive",
         incomplete: "incomplete",

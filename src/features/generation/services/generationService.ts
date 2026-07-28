@@ -1,10 +1,11 @@
 import { generationRepository } from "../../../db/repositories/generationRepository";
+import { appOptionsRepository } from "../../../db/repositories/appOptionsRepository";
 import { modelLoadEstimateRepository } from "../../../db/repositories/modelLoadEstimateRepository";
 import {
   isProviderUsable,
   providerConfigRepository,
 } from "../../../db/repositories/providerConfigRepository";
-import { getModel } from "../models/registry";
+import { getModel, isModelEnabled } from "../models/registry";
 import type { StaticModel } from "../models/types";
 import {
   isBrowserOffline,
@@ -26,11 +27,13 @@ export async function generateImages(
   signal?: AbortSignal,
 ): Promise<NormalizedImageOutput> {
   const model = getModel(modelId);
+  const disabledModelIds = await appOptionsRepository.getDisabledModelIds();
   const providerConfig = model
     ? await providerConfigRepository.get(model.providerId)
     : undefined;
   if (
     !model ||
+    !isModelEnabled(model, disabledModelIds) ||
     !providerConfig ||
     !isProviderUsable(providerConfig) ||
     !["image", "image-edit"].includes(model.type)

@@ -1,0 +1,143 @@
+{
+  "grok-imagine-image": {
+    "label": {
+      "de": "$0,02/Bild",
+      "en": "$0.02/image"
+    },
+    "basis": "providerModelName=grok-imagine-image; quality=low",
+    "sourceUrl": "https://docs.x.ai/docs/models",
+    "checkedAt": "2026-07-28"
+  },
+  "grok-imagine-image-quality": {
+    "label": {
+      "de": "$0,05/Bild",
+      "en": "$0.05/image"
+    },
+    "basis": "providerModelName=grok-imagine-image-quality; quality=low",
+    "sourceUrl": "https://docs.x.ai/docs/models",
+    "checkedAt": "2026-07-28"
+  },
+  "xai-grok-text": {
+    "label": {
+      "de": "$1,25 In · $2,50 Out /1M Tokens",
+      "en": "$1.25 in · $2.50 out /1M tokens"
+    },
+    "sourceUrl": "https://docs.x.ai/docs/models",
+    "checkedAt": "2026-07-28"
+  },
+  "openai-image-1-5": {
+    "label": {
+      "de": "$0,009–0,013/Bild (low)",
+      "en": "$0.009–0.013/image (low)"
+    },
+    "basis": "quality=low; size=1024x1024|1024x1536|1536x1024",
+    "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-image-1.5",
+    "checkedAt": "2026-07-28"
+  },
+  "openai-gpt-4o-mini": {
+    "label": {
+      "de": "$0,15 In · $0,60 Out /1M Tokens",
+      "en": "$0.15 in · $0.60 out /1M tokens"
+    },
+    "sourceUrl": "https://developers.openai.com/api/docs/pricing",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-openai-gpt-4o-mini": {
+    "label": {
+      "de": "$0,15 In · $0,60 Out /1M Tokens",
+      "en": "$0.15 in · $0.60 out /1M tokens"
+    },
+    "sourceUrl": "https://openrouter.ai/openai/gpt-4o-mini",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-seedream-v5-lite-edit": {
+    "label": {
+      "de": "$0,035/Bild",
+      "en": "$0.035/image"
+    },
+    "basis": "fixed price per generated image",
+    "sourceUrl": "https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/edit",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-flux-2-flex": {
+    "label": {
+      "de": "$0,05/MP Ein- & Ausgabe",
+      "en": "$0.05/MP input & output"
+    },
+    "basis": "input and output megapixels, each rounded up",
+    "sourceUrl": "https://fal.ai/models/fal-ai/flux-2-flex/edit",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-flux-2-klein-9b-edit": {
+    "label": {
+      "de": "$0,011/MP Ein- & Ausgabe",
+      "en": "$0.011/MP input & output"
+    },
+    "basis": "input and output megapixels; input resized to 1 MP",
+    "sourceUrl": "https://fal.ai/models/fal-ai/flux-2/klein/9b/edit",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-nano-banana-lite-edit": {
+    "label": {
+      "de": "$0,3125 In · $37,50 Out /1M Bildtokens",
+      "en": "$0.3125 in · $37.50 out /1M image tokens"
+    },
+    "basis": "image input and output tokens; fixed 1K output",
+    "sourceUrl": "https://fal.ai/models/google/nano-banana-lite/edit",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-nano-banana": {
+    "label": {
+      "de": "$0,039/Bild",
+      "en": "$0.039/image"
+    },
+    "basis": "fixed price per generated image",
+    "sourceUrl": "https://fal.ai/models/fal-ai/nano-banana",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-nano-banana-2": {
+    "label": {
+      "de": "$0,06/Bild (0,5K)",
+      "en": "$0.06/image (0.5K)"
+    },
+    "basis": "resolution=0.5K; 0.75 times the 1K price",
+    "sourceUrl": "https://fal.ai/models/fal-ai/nano-banana-2",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-nano-banana-2-edit": {
+    "label": {
+      "de": "$0,06/Bild (0,5K)",
+      "en": "$0.06/image (0.5K)"
+    },
+    "basis": "resolution=0.5K; 0.75 times the 1K price",
+    "sourceUrl": "https://fal.ai/models/fal-ai/nano-banana-2/edit",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-grok-imagine-image": {
+    "label": {
+      "de": "$0,02/Bild",
+      "en": "$0.02/image"
+    },
+    "basis": "resolution=1k; output image only",
+    "sourceUrl": "https://fal.ai/models/xai/grok-imagine-image",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-grok-imagine-edit": {
+    "label": {
+      "de": "$0,022/Bild",
+      "en": "$0.022/image"
+    },
+    "basis": "resolution=1k; one image input and one image output",
+    "sourceUrl": "https://fal.ai/models/xai/grok-imagine-image/edit",
+    "checkedAt": "2026-07-28"
+  },
+  "fal-openai-gpt-image-2-edit": {
+    "label": {
+      "de": "ab $0,011/Bild (low)",
+      "en": "from $0.011/image (low)"
+    },
+    "basis": "quality=low; image_size=auto; price varies with input count and size",
+    "sourceUrl": "https://fal.ai/models/openai/gpt-image-2/edit",
+    "checkedAt": "2026-07-28"
+  }
+}

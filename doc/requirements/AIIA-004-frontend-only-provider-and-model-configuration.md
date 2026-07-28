@@ -31,12 +31,13 @@ This requirement defines the MVP scope for a frontend-only application with loca
 ### Local provider configuration with static models
 
 **Type:** Functional  
-**Description:** Users must be able to configure fixed API providers directly in the GUI. Models are statically implemented in the application and are not user-configurable.  
+**Description:** Users must be able to configure fixed API providers directly in the GUI. Models are statically implemented in the application; users can only activate or deactivate them.  
 **Acceptance Criteria:**
 
 - The GUI provides inputs for provider settings.
 - The GUI provides inputs for API URL, API key, and active/inactive status per fixed provider.
 - The GUI does not provide inputs for model names, model types, default parameters, or model capabilities.
+- The GUI provides an activation checkbox for each static model; every model is activated by default.
 - Static model definitions in the implementation provide model names, types, provider mapping, default parameters, reference-image capability, and image-input capability for text or chat-completion models.
 
 ### Local configuration persistence
@@ -46,17 +47,18 @@ This requirement defines the MVP scope for a frontend-only application with loca
 **Acceptance Criteria:**
 
 - Stored provider data remains available after reloading the application.
-- Provider URL, API key, and active/inactive status can be edited locally and saved again.
+- Provider URL, API key, and active/inactive status are persisted locally immediately after each change.
 - The documentation treats IndexedDB and Dexie as local MVP constraints, not as a general backend architecture.
 
 ### Derive active models from provider configuration and static definitions
 
 **Type:** Functional  
-**Description:** A model must be considered active only when its fixed provider is active and has the required stored configuration values.  
+**Description:** A model must be considered usable only when its activation checkbox and fixed provider are active and the provider has the required stored configuration values.  
 **Acceptance Criteria:**
 
-- Models whose provider has a URL, API key, and active status are treated as active.
+- Models whose provider has a URL, API key, active status, and individual activation are treated as usable.
 - Models whose provider is inactive or missing URL or credential values are not offered for generation.
+- Individually deactivated models are not offered for generation.
 - Model names and capabilities are read from static model definitions, not from local storage.
 
 ### Require image and image-capable text model configuration
@@ -72,6 +74,22 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - Image-capable text or chat-completion models analyze the first successfully generated image for automatic chat naming.
 - Text or chat-completion models without image-input capability do not satisfy the minimum model configuration.
 - Incomplete or inactive models are not counted toward the minimum usable model configuration.
+- At least one activated image or image-edit model and one activated image-capable text model must remain active across all providers.
+- A provider cannot be deactivated when it would remove the last required activated image or image-capable text model.
+
+### Provide one image-capable text model per provider
+
+**Type:** Functional  
+**Description:** Each fixed provider must provide one static image-capable text model so that automatic chat naming works when only that provider is configured.  
+**Acceptance Criteria:**
+
+- OpenAI provides `gpt-4o-mini` as its image-capable text model.
+- xAI/Grok provides a non-reasoning Grok model with image input as its image-capable text model.
+- fal.ai provides `openai/gpt-4o-mini` through its OpenRouter endpoint as its image-capable text model.
+- A usable configuration of any one fixed provider supplies both image generation and automatic chat naming without requiring credentials for another provider.
+- Automatic chat naming uses the first usable image-capable text model returned by the static model registry.
+- Automatic chat naming does not request or enable reasoning.
+- Failure of automatic chat naming does not invalidate an otherwise successful image generation.
 
 ### Provide an options area for global settings
 
@@ -83,7 +101,8 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - The options area includes an API URL per provider.
 - The options area includes an API key per provider.
 - The options area includes the active/inactive status per provider.
-- The options area shows the active static models per provider as a simple name-sorted list.
+- The options area shows all static models per provider as a name-sorted checkbox list.
+- Changes to provider configuration, model activation, default image model, theme, and language are persisted immediately without a save action.
 - The options area includes the theme switch for dark and light mode.
 - The options area includes a language selection for German and English.
 - Changing the language applies immediately to app-owned UI text and accessibility labels.
@@ -99,6 +118,21 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - New chats preselect the default model.
 - If the default model is not usable, the first usable image model is selected.
 - Image-derived chats restore the model ID of the selected image's historical generation request instead of the global default.
+
+### Show static model pricing
+
+**Type:** Functional  
+**Description:** The provider options must show a concise pricing reference for each static model without requesting pricing data at runtime.  
+**Acceptance Criteria:**
+
+- Each priced model shows its pricing reference on a second line below its name and estimated duration.
+- The pricing reference includes the billing unit, for example per image, megapixel, or one million tokens.
+- Pricing references are stored in one static, centrally maintainable file together with an official source URL and the date on which the price was checked.
+- Price variants reflect the effective default quality, resolution, and other pricing-relevant parameters sent by the provider adapter.
+- A range or starting price is shown when aspect ratio, input images, or other variable request parameters prevent an exact price.
+- Pricing references are available in German and English and change with the selected application language.
+- A missing price entry does not make a model unusable and does not render an empty pricing line.
+- The application does not fetch provider pricing pages at runtime.
 
 ### Fixed providers without dynamic creation
 
@@ -121,7 +155,7 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - A built-in provider adapter can be reused by multiple static model classes when the API contract is compatible.
 - Users select from active static models in the model dropdown.
 - Adding a new provider model variant requires adding a static model implementation.
-- Local provider configuration remains the source of truth for whether a provider's static models are usable.
+- Local provider configuration and persisted model activation preferences remain the source of truth for whether a provider's static models are usable.
 
 ### Execute direct generation requests in the MVP
 

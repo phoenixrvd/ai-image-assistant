@@ -7,10 +7,11 @@ import type { StaticModel } from "../models/types";
 import type {
   ImageGenerationInput,
   NormalizedGenerationOutput,
-  ProviderAdapter,
-  TextGenerationInput,
 } from "./types";
-import { buildImagePrompt } from "./openAiCompatibleProvider";
+import {
+  buildImagePrompt,
+  OpenAiCompatibleProvider,
+} from "./openAiCompatibleProvider";
 import { responseToSafeError } from "./sanitize";
 import i18n from "../../../i18n/i18n";
 
@@ -23,12 +24,12 @@ interface FalAiImageResponse {
   seed?: number;
 }
 
-export class FalAiProvider implements ProviderAdapter {
+export class FalAiProvider extends OpenAiCompatibleProvider {
   id = "fal-ai";
   label = "fal.ai";
 
   supportsModelType(type: ModelType): boolean {
-    return type === "image" || type === "image-edit";
+    return type === "image" || type === "image-edit" || type === "text";
   }
 
   async generateImage(
@@ -90,12 +91,17 @@ export class FalAiProvider implements ProviderAdapter {
     return { images, rawMetadata: { seed: payload.seed ?? null } };
   }
 
-  async generateText(
-    _model: StaticModel,
-    _providerConfig: ProviderConfigEntity,
-    _input: TextGenerationInput,
-  ): Promise<string> {
-    throw new Error(i18n.t("errors.providerUnsupportedText"));
+  protected buildChatCompletionsUrl(
+    providerConfig: ProviderConfigEntity,
+  ): string {
+    const baseUrl = providerConfig.baseUrl.trim().replace(/\/+$/, "");
+    return `${baseUrl}/openrouter/router/openai/v1/chat/completions`;
+  }
+
+  protected buildTextAuthorization(
+    providerConfig: ProviderConfigEntity,
+  ): string {
+    return `Key ${providerConfig.apiKey ?? ""}`;
   }
 }
 

@@ -1,9 +1,14 @@
 import { chatRepository } from "../../../db/repositories/chatRepository";
+import { appOptionsRepository } from "../../../db/repositories/appOptionsRepository";
 import {
   isProviderUsable,
   providerConfigRepository,
 } from "../../../db/repositories/providerConfigRepository";
-import { getModel, modelSupportsImageInput } from "../models/registry";
+import {
+  getModel,
+  isModelEnabled,
+  modelSupportsImageInput,
+} from "../models/registry";
 import { getProviderForModel } from "../providers/registry";
 import type { NormalizedImageOutput } from "../providers/types";
 import i18n from "../../../i18n/i18n";
@@ -27,11 +32,13 @@ export async function generateChatTitle(
   language: AppLanguage,
 ): Promise<void> {
   const model = getModel(modelId);
+  const disabledModelIds = await appOptionsRepository.getDisabledModelIds();
   const providerConfig = model
     ? await providerConfigRepository.get(model.providerId)
     : undefined;
   if (
     !model ||
+    !isModelEnabled(model, disabledModelIds) ||
     model.type !== "text" ||
     !modelSupportsImageInput(model) ||
     !providerConfig ||

@@ -5,8 +5,12 @@ export const defaultImageModelId = "fal-grok-imagine-edit";
 
 export const providerDefinitions: ProviderDefinition[] = [
   { id: "xai", label: "xAI / Grok", defaultBaseUrl: "https://api.x.ai/v1" },
-  { id: "openai", label: "OpenAI", defaultBaseUrl: "https://api.openai.com/v1" },
-  { id: "fal-ai", label: "fal.ai", defaultBaseUrl: "https://fal.run" }
+  {
+    id: "openai",
+    label: "OpenAI",
+    defaultBaseUrl: "https://api.openai.com/v1",
+  },
+  { id: "fal-ai", label: "fal.ai", defaultBaseUrl: "https://fal.run" },
 ];
 
 class GrokImagineImage implements StaticModel {
@@ -29,6 +33,16 @@ class GrokImagineImageQuality implements StaticModel {
   defaultParameters = { quality: "low" };
 }
 
+class GrokText implements StaticModel {
+  id = "xai-grok-text";
+  providerId = "xai" as const;
+  name = "Grok 4.20 Non-Reasoning";
+  type = "text" as const;
+  providerModelName = "grok-4.20-0309-non-reasoning";
+  supportsReferenceImages = false;
+  supportsImageInput = true;
+}
+
 class OpenAiImage15 implements StaticModel {
   id = "openai-image-1-5";
   providerId = "openai" as const;
@@ -49,6 +63,16 @@ class OpenAiGpt4oMini implements StaticModel {
   supportsImageInput = true;
 }
 
+class FalOpenAiGpt4oMini implements StaticModel {
+  id = "fal-openai-gpt-4o-mini";
+  providerId = "fal-ai" as const;
+  name = "OpenAI GPT-4o mini";
+  type = "text" as const;
+  providerModelName = "openai/gpt-4o-mini";
+  supportsReferenceImages = false;
+  supportsImageInput = true;
+}
+
 class FalSeedreamV5LiteEdit implements StaticModel {
   id = "fal-seedream-v5-lite-edit";
   providerId = "fal-ai" as const;
@@ -63,8 +87,8 @@ class FalSeedreamV5LiteEdit implements StaticModel {
     image_size_by_aspect: {
       square: { width: 1920, height: 1920 },
       portrait: { width: 1440, height: 2560 },
-      landscape: { width: 2560, height: 1440 }
-    }
+      landscape: { width: 2560, height: 1440 },
+    },
   };
 }
 
@@ -85,8 +109,8 @@ class FalFlux2Flex implements StaticModel {
     image_size_by_aspect: {
       square: "auto",
       portrait: "auto",
-      landscape: "auto"
-    }
+      landscape: "auto",
+    },
   };
 }
 
@@ -106,8 +130,8 @@ class FalFlux2Klein9bEdit implements StaticModel {
     image_size_by_aspect: {
       square: { width: 1280, height: 1280 },
       portrait: { width: 720, height: 1280 },
-      landscape: { width: 1280, height: 720 }
-    }
+      landscape: { width: 1280, height: 720 },
+    },
   };
 }
 
@@ -126,8 +150,8 @@ class FalNanoBananaLiteEdit implements StaticModel {
     aspect_ratio_by_aspect: {
       square: "1:1",
       portrait: "9:16",
-      landscape: "16:9"
-    }
+      landscape: "16:9",
+    },
   };
 }
 
@@ -146,8 +170,51 @@ class FalNanoBanana implements StaticModel {
     aspect_ratio_by_aspect: {
       square: "1:1",
       portrait: "9:16",
-      landscape: "16:9"
-    }
+      landscape: "16:9",
+    },
+  };
+}
+
+class FalNanoBanana2 implements StaticModel {
+  id = "fal-nano-banana-2";
+  providerId = "fal-ai" as const;
+  name = "Nano Banana 2";
+  type = "image" as const;
+  providerModelName = "fal-ai/nano-banana-2";
+  supportsReferenceImages = false;
+  defaultParameters = {
+    resolution: "0.5K",
+    sync_mode: true,
+    output_format: "png",
+    safety_tolerance: "6",
+    limit_generations: true,
+    aspect_ratio_by_aspect: {
+      square: "1:1",
+      portrait: "9:16",
+      landscape: "16:9",
+    },
+  };
+}
+
+class FalNanoBanana2Edit implements StaticModel {
+  id = "fal-nano-banana-2-edit";
+  providerId = "fal-ai" as const;
+  name = "Nano Banana 2 Edit";
+  type = "image-edit" as const;
+  providerModelName = "fal-ai/nano-banana-2/edit";
+  supportsReferenceImages = true;
+  requiresReferenceImages = true;
+  defaultParameters = {
+    resolution: "0.5K",
+    sync_mode: true,
+    output_format: "png",
+    safety_tolerance: "6",
+    limit_generations: true,
+    aspect_ratio_by_aspect: {
+      square: "1:1",
+      portrait: "9:16",
+      landscape: "16:9",
+    },
   };
 }
 
@@ -166,8 +233,8 @@ class FalGrokImagineEdit implements StaticModel {
     aspect_ratio_by_aspect: {
       square: "1:1",
       portrait: "9:16",
-      landscape: "16:9"
-    }
+      landscape: "16:9",
+    },
   };
 }
 
@@ -185,8 +252,8 @@ class FalGrokImagineImage implements StaticModel {
     aspect_ratio_by_aspect: {
       square: "1:1",
       portrait: "9:16",
-      landscape: "16:9"
-    }
+      landscape: "16:9",
+    },
   };
 }
 
@@ -205,24 +272,28 @@ class FalOpenAiGptImage2Edit implements StaticModel {
     image_size_by_aspect: {
       square: "auto",
       portrait: "auto",
-      landscape: "auto"
-    }
+      landscape: "auto",
+    },
   };
 }
 
 const models: StaticModel[] = [
   new GrokImagineImage(),
   new GrokImagineImageQuality(),
+  new GrokText(),
   new OpenAiImage15(),
   new OpenAiGpt4oMini(),
+  new FalOpenAiGpt4oMini(),
   new FalSeedreamV5LiteEdit(),
   new FalFlux2Flex(),
   new FalFlux2Klein9bEdit(),
   new FalNanoBanana(),
   new FalNanoBananaLiteEdit(),
+  new FalNanoBanana2(),
+  new FalNanoBanana2Edit(),
   new FalGrokImagineImage(),
   new FalGrokImagineEdit(),
-  new FalOpenAiGptImage2Edit()
+  new FalOpenAiGptImage2Edit(),
 ];
 
 export function listModels(): StaticModel[] {
@@ -237,18 +308,107 @@ export function getModel(id: string): StaticModel | undefined {
   return models.find((model) => model.id === id);
 }
 
-export function listUsableModels(types: ModelType[], providerConfigs: ProviderConfigEntity[]): StaticModel[] {
-  return listModels().filter((model) => types.includes(model.type) && isModelUsable(model, providerConfigs));
+export function listUsableModels(
+  types: ModelType[],
+  providerConfigs: ProviderConfigEntity[],
+  disabledModelIds: string[] = [],
+): StaticModel[] {
+  return listModels().filter(
+    (model) =>
+      types.includes(model.type) &&
+      isModelUsable(model, providerConfigs, disabledModelIds),
+  );
 }
 
-export function selectDefaultImageModel(models: StaticModel[], selectedModelId?: string | null): StaticModel | undefined {
-  if (selectedModelId) return models.find((model) => model.id === selectedModelId) ?? models[0];
+export function selectDefaultImageModel(
+  models: StaticModel[],
+  selectedModelId?: string | null,
+): StaticModel | undefined {
+  if (selectedModelId)
+    return models.find((model) => model.id === selectedModelId) ?? models[0];
   return models.find((model) => model.id === defaultImageModelId) ?? models[0];
 }
 
-export function isModelUsable(model: StaticModel, providerConfigs: ProviderConfigEntity[]): boolean {
-  const provider = providerConfigs.find((config) => config.id === model.providerId);
-  return Boolean(provider && provider.enabled !== false && provider.baseUrl.trim() && provider.apiKey?.trim());
+export function isModelEnabled(
+  model: StaticModel,
+  disabledModelIds: string[] = [],
+): boolean {
+  return !disabledModelIds.includes(model.id);
+}
+
+export function isModelEffectivelyEnabled(
+  model: StaticModel,
+  providerConfigs: ProviderConfigEntity[],
+  disabledModelIds: string[] = [],
+): boolean {
+  const provider = providerConfigs.find(
+    (config) => config.id === model.providerId,
+  );
+  return Boolean(
+    provider &&
+    provider.enabled !== false &&
+    isModelEnabled(model, disabledModelIds),
+  );
+}
+
+export function isModelUsable(
+  model: StaticModel,
+  providerConfigs: ProviderConfigEntity[],
+  disabledModelIds: string[] = [],
+): boolean {
+  const provider = providerConfigs.find(
+    (config) => config.id === model.providerId,
+  );
+  return Boolean(
+    provider &&
+    provider.baseUrl.trim() &&
+    provider.apiKey?.trim() &&
+    isModelEffectivelyEnabled(model, providerConfigs, disabledModelIds),
+  );
+}
+
+export function hasRequiredEnabledModels(
+  providerConfigs: ProviderConfigEntity[],
+  disabledModelIds: string[] = [],
+): boolean {
+  const enabledModels = listModels().filter((model) =>
+    isModelEffectivelyEnabled(model, providerConfigs, disabledModelIds),
+  );
+  return (
+    enabledModels.some(
+      (model) => model.type === "image" || model.type === "image-edit",
+    ) &&
+    enabledModels.some(
+      (model) => model.type === "text" && modelSupportsImageInput(model),
+    )
+  );
+}
+
+export function canDisableModel(
+  modelId: string,
+  providerConfigs: ProviderConfigEntity[],
+  disabledModelIds: string[] = [],
+): boolean {
+  if (disabledModelIds.includes(modelId)) return true;
+  return hasRequiredEnabledModels(providerConfigs, [
+    ...disabledModelIds,
+    modelId,
+  ]);
+}
+
+export function canDisableProvider(
+  providerId: string,
+  providerConfigs: ProviderConfigEntity[],
+  disabledModelIds: string[] = [],
+): boolean {
+  const provider = providerConfigs.find((entry) => entry.id === providerId);
+  if (!provider || provider.enabled === false) return true;
+  return hasRequiredEnabledModels(
+    providerConfigs.map((entry) =>
+      entry.id === providerId ? { ...entry, enabled: false } : entry,
+    ),
+    disabledModelIds,
+  );
 }
 
 export function modelSupportsReferenceImages(model?: StaticModel): boolean {
@@ -263,7 +423,9 @@ export function modelRequiresReferenceImages(model?: StaticModel): boolean {
   return model?.requiresReferenceImages === true;
 }
 
-export function getProviderDefinition(providerId: string): ProviderDefinition | undefined {
+export function getProviderDefinition(
+  providerId: string,
+): ProviderDefinition | undefined {
   return providerDefinitions.find((provider) => provider.id === providerId);
 }
 
@@ -273,7 +435,9 @@ export function getModelLabel(model: StaticModel): string {
 }
 
 function sortByProviderAndName(left: StaticModel, right: StaticModel): number {
-  const provider = left.providerId.localeCompare(right.providerId, "de", { sensitivity: "base" });
+  const provider = left.providerId.localeCompare(right.providerId, "de", {
+    sensitivity: "base",
+  });
   if (provider !== 0) return provider;
   return left.name.localeCompare(right.name, "de", { sensitivity: "base" });
 }

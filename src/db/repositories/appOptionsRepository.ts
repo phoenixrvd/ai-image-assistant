@@ -30,4 +30,18 @@ export const appOptionsRepository = {
       (await this.get<string>("activeImageModelId"))
     );
   },
+
+  async getDisabledModelIds(): Promise<string[]> {
+    const value = await this.get<JsonValue>("disabledModelIds");
+    if (!Array.isArray(value)) return [];
+    return [
+      ...new Set(
+        value.filter((entry): entry is string => typeof entry === "string"),
+      ),
+    ];
+  },
+
+  async setDisabledModelIds(modelIds: string[]): Promise<AppOptionEntity> {
+    return this.set("disabledModelIds", [...new Set(modelIds)]);
+  },
 };

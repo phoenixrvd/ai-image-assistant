@@ -1,17 +1,18 @@
-import { Fragment, useEffect, useState, type FormEvent } from "react";
+import { Fragment } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Moon, Sun } from "lucide-react";
 import type { ProviderConfigEntity, ThemeMode } from "../../db/entities";
 import { appOptionsRepository } from "../../db/repositories/appOptionsRepository";
 import { modelLoadEstimateRepository } from "../../db/repositories/modelLoadEstimateRepository";
-import {
-  isProviderUsable,
-  providerConfigRepository,
-} from "../../db/repositories/providerConfigRepository";
+import { providerConfigRepository } from "../../db/repositories/providerConfigRepository";
 import {
   getModelLabel,
   getProviderDefinition,
+  canDisableModel,
+  canDisableProvider,
+  hasRequiredEnabledModels,
+  isModelEnabled,
   listModels,
   listModelsByProvider,
   listUsableModels,
@@ -21,22 +22,33 @@ import type {
   ProviderId,
   StaticModel,
 } from "../../features/generation/models/types";
+import { getModelPriceLabel } from "../../features/generation/models/pricing";
 import { appMetadata } from "../metadata";
 import { changeAppLanguage } from "../../i18n/i18n";
 import type { AppLanguage } from "../../i18n/types";
 
 export function OptionsView(props: {
   providerConfigs: ProviderConfigEntity[];
+  disabledModelIds: string[];
   theme: ThemeMode;
   defaultImageModelId?: string;
   onDefaultImageModel: (modelId: string) => void;
+  onDisabledModelIds: (modelIds: string[]) => Promise<void>;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const saveProviderMutation = useMutation({
     mutationFn: (provider: ProviderConfigEntity) =>
       providerConfigRepository.save(provider),
-    onSuccess: () =>
+    scope: { id: "provider-config" },
+    onMutate: (provider) => {
+      queryClient.setQueryData<ProviderConfigEntity[]>(
+        ["providerConfigs"],
+        (current = []) =>
+          current.map((entry) => (entry.id === provider.id ? provider : entry)),
+      );
+    },
+    onError: () =>
       queryClient.invalidateQueries({ queryKey: ["providerConfigs"] }),
   });
 
@@ -52,6 +64,7 @@ export function OptionsView(props: {
   const usableImageModels = listUsableModels(
     ["image", "image-edit"],
     props.providerConfigs,
+    props.disabledModelIds,
   );
 
   const modelEstimateQuery = useQuery({
@@ -89,8 +102,11 @@ export function OptionsView(props: {
             <ProviderForm
               key={definition.id}
               provider={provider}
+              providerConfigs={props.providerConfigs}
+              disabledModelIds={props.disabledModelIds}
               estimates={modelEstimateQuery.data}
-              onSave={(next) => saveProviderMutation.mutate(next)}
+              onChange={(next) => saveProviderMutation.mutate(next)}
+              onDisabledModelIds={props.onDisabledModelIds}
             />
           );
         })}
@@ -196,127 +212,154 @@ export function OptionsView(props: {
 
 function ProviderForm(props: {
   provider: ProviderConfigEntity;
+  providerConfigs: ProviderConfigEntity[];
+  disabledModelIds: string[];
   estimates?: Record<string, number>;
-  onSave: (provider: ProviderConfigEntity) => void;
+  onChange: (provider: ProviderConfigEntity) => void;
+  onDisabledModelIds: (modelIds: string[]) => Promise<void>;
 }) {
   const { t, i18n } = useTranslation();
-  const [provider, setProvider] = useState(props.provider);
-  const [validated, setValidated] = useState(false);
-  const usable = isProviderUsable(provider);
+  const provider = props.provider;
   const definition = getProviderDefinition(provider.id);
-  const activeModels = usable
-    ? listModelsByProvider(provider.id as ProviderId).sort((left, right) =>
-        left.name.localeCompare(right.name, i18n.language, {
-          sensitivity: "base",
-        }),
+  const models = listModelsByProvider(provider.id as ProviderId).sort(
+    (left, right) =>
+      left.name.localeCompare(right.name, i18n.language, {
+        sensitivity: "base",
+      }),
+  );
+  const disableProviderBlocked =
+    provider.enabled !== false &&
+    !canDisableProvider(
+      provider.id,
+      props.providerConfigs,
+      props.disabledModelIds,
+    );
+  const saveDisabledModelsMutation = useMutation({
+    mutationFn: props.onDisabledModelIds,
+  });
+
+  function updateProvider(next: ProviderConfigEntity) {
+    if (
+      next.enabled === false &&
+      !hasRequiredEnabledModels(
+        props.providerConfigs.map((entry) =>
+          entry.id === provider.id ? next : entry,
+        ),
+        props.disabledModelIds,
       )
-    : [];
-  const shouldShowSavedErrors = !validated && provider.enabled !== false;
-
-  useEffect(() => setProvider(props.provider), [props.provider]);
-
-  function submitProvider(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setValidated(true);
-    if (!event.currentTarget.checkValidity()) return;
-    props.onSave(provider);
+    )
+      return;
+    props.onChange(next);
   }
 
   return (
-    <form
-      className={validated ? "model-form was-validated" : "model-form"}
-      noValidate
-      onSubmit={submitProvider}
-    >
-      <h3 className="h6 mb-0">{definition?.label ?? provider.id}</h3>
-      <div className="form-floating">
-        <input
-          id={`provider-url-${provider.id}`}
-          className={fieldClass(
-            !provider.baseUrl.trim(),
-            shouldShowSavedErrors,
-            "form-control",
-          )}
-          value={provider.baseUrl}
-          placeholder={definition?.defaultBaseUrl ?? "https://api.example.com"}
-          required
-          onChange={(event) =>
-            setProvider({ ...provider, baseUrl: event.target.value })
-          }
-        />
-        <label htmlFor={`provider-url-${provider.id}`}>
-          {t("options.baseUrl")}
+    <section className="model-form">
+      <h3 className="h6 mb-0">
+        <label className="d-inline-flex align-items-center gap-2">
+          <input
+            className="form-check-input m-0"
+            type="checkbox"
+            checked={provider.enabled !== false}
+            disabled={disableProviderBlocked}
+            onChange={(event) =>
+              updateProvider({ ...provider, enabled: event.target.checked })
+            }
+          />
+          <span>{definition?.label ?? provider.id}</span>
         </label>
-        <div className="invalid-feedback">{t("options.requiredBaseUrl")}</div>
-      </div>
-      <div className="form-floating">
-        <input
-          id={`provider-key-${provider.id}`}
-          className={fieldClass(
-            !provider.apiKey?.trim(),
-            shouldShowSavedErrors,
-            "form-control",
-          )}
-          value={provider.apiKey ?? ""}
-          type="password"
-          placeholder="API-Key"
-          required
-          onChange={(event) =>
-            setProvider({ ...provider, apiKey: event.target.value })
-          }
-        />
-        <label htmlFor={`provider-key-${provider.id}`}>
-          {t("options.apiKey")}
-        </label>
-        <div className="invalid-feedback">{t("options.requiredApiKey")}</div>
-      </div>
-      <label className="form-check d-inline-flex align-items-center gap-2">
-        <input
-          className="form-check-input"
-          type="checkbox"
-          checked={provider.enabled !== false}
-          onChange={(event) =>
-            setProvider({ ...provider, enabled: event.target.checked })
-          }
-        />{" "}
-        <span className="form-check-label">{t("options.enabled")}</span>
-      </label>
-      <div className="small text-secondary">
-        <div>{t("options.activeModels")}</div>
-        {activeModels.length > 0 ? (
-          <ul className="mb-0 ps-3">
-            {activeModels.map((model) => (
-              <li key={model.id}>
-                {formatModelName(model, t, props.estimates)}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <span>{t("common.none")}</span>
-        )}
-      </div>
-      <div className="d-flex align-items-center justify-content-between gap-3">
-        <span
-          className={
-            usable
-              ? "model-status model-status--usable"
-              : "model-status model-status--incomplete"
-          }
-        >
-          <span className="model-status__dot" aria-hidden="true" />
-          <span>
-            {usable
-              ? t("options.usable")
-              : provider.enabled === false
-                ? t("options.inactive")
-                : t("options.incomplete")}
-          </span>
-        </span>
-        <button className="btn btn-primary" type="submit">
-          {t("common.save")}
-        </button>
-      </div>
-    </form>
+      </h3>
+      {provider.enabled !== false ? (
+        <>
+          <div className="form-floating">
+            <input
+              id={`provider-url-${provider.id}`}
+              className="form-control"
+              value={provider.baseUrl}
+              placeholder={
+                definition?.defaultBaseUrl ?? "https://api.example.com"
+              }
+              onChange={(event) =>
+                updateProvider({ ...provider, baseUrl: event.target.value })
+              }
+            />
+            <label htmlFor={`provider-url-${provider.id}`}>
+              {t("options.baseUrl")}
+            </label>
+          </div>
+          <div className="form-floating">
+            <input
+              id={`provider-key-${provider.id}`}
+              className="form-control"
+              value={provider.apiKey ?? ""}
+              type="password"
+              placeholder="API-Key"
+              onChange={(event) =>
+                updateProvider({ ...provider, apiKey: event.target.value })
+              }
+            />
+            <label htmlFor={`provider-key-${provider.id}`}>
+              {t("options.apiKey")}
+            </label>
+          </div>
+          {disableProviderBlocked ? (
+            <div className="form-text">{t("options.providerRequired")}</div>
+          ) : null}
+          <div className="model-options">
+            <div className="small text-secondary">{t("options.models")}</div>
+            {models.map((model) => {
+              const enabled = isModelEnabled(model, props.disabledModelIds);
+              const priceLabel = getModelPriceLabel(
+                model.id,
+                i18n.language === "de" ? "de" : "en",
+              );
+              const disableModelBlocked =
+                enabled &&
+                !canDisableModel(
+                  model.id,
+                  props.providerConfigs,
+                  props.disabledModelIds,
+                );
+              return (
+                <label
+                  className="form-check d-flex align-items-center gap-2"
+                  key={model.id}
+                >
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={enabled}
+                    disabled={disableModelBlocked}
+                    onChange={(event) => {
+                      const disabledModelIds = event.target.checked
+                        ? props.disabledModelIds.filter((id) => id !== model.id)
+                        : [...props.disabledModelIds, model.id];
+                      saveDisabledModelsMutation.mutate(disabledModelIds);
+                    }}
+                  />
+                  <span className="form-check-label model-option-label">
+                    <span>{formatModelName(model, t, props.estimates)}</span>
+                    {priceLabel ? (
+                      <small className="model-option-price">{priceLabel}</small>
+                    ) : null}
+                  </span>
+                </label>
+              );
+            })}
+            {models.some(
+              (model) =>
+                isModelEnabled(model, props.disabledModelIds) &&
+                !canDisableModel(
+                  model.id,
+                  props.providerConfigs,
+                  props.disabledModelIds,
+                ),
+            ) ? (
+              <div className="form-text">{t("options.modelRequired")}</div>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </section>
   );
 }
 
@@ -332,20 +375,12 @@ function createProviderFallback(providerId: ProviderId): ProviderConfigEntity {
   };
 }
 
-function fieldClass(
-  invalid: boolean,
-  showInvalid: boolean,
-  baseClass: string,
-): string {
-  return invalid && showInvalid ? `${baseClass} is-invalid` : baseClass;
-}
-
 function formatModelName(
   model: StaticModel,
   t: ReturnType<typeof useTranslation>["t"],
   estimates?: Record<string, number>,
 ): string {
-  if (model.type === "text") return model.name;
+  if (model.type === "text") return `${model.name} (${t("options.text")})`;
   const seconds = estimates?.[estimateKey(model)] ?? 30;
   return t("options.estimate", {
     name: model.name,

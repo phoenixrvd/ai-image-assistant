@@ -152,11 +152,11 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
         ]
       : input.prompt;
     const response = await fetch(
-      `${providerConfig.baseUrl.replace(/\/$/, "")}/chat/completions`,
+      this.buildChatCompletionsUrl(providerConfig),
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
+          Authorization: this.buildTextAuthorization(providerConfig),
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -180,6 +180,18 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
     const text = payload.choices?.[0]?.message?.content?.trim();
     if (!text) throw new Error(i18n.t("errors.providerNoText"));
     return text;
+  }
+
+  protected buildChatCompletionsUrl(
+    providerConfig: ProviderConfigEntity,
+  ): string {
+    return `${providerConfig.baseUrl.replace(/\/$/, "")}/chat/completions`;
+  }
+
+  protected buildTextAuthorization(
+    providerConfig: ProviderConfigEntity,
+  ): string {
+    return `Bearer ${providerConfig.apiKey ?? ""}`;
   }
 }
 

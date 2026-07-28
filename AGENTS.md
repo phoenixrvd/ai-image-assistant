@@ -36,3 +36,7 @@
 ## Text
 
 - German user-facing text must use real umlauts: `für`, `löschen`, `wählen`, `enthält`, `unterstützt`, not `fuer`, `loeschen`, `waehlen`, `enthaelt`, `unterstuetzt`.
+
+## Model Pricing
+
+- Static model prices live in `src/features/generation/models/pricing.json`; follow `src/features/generation/models/pricing.md` when adding models or updating prices.

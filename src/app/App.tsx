@@ -149,6 +149,10 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
     queryKey: ["defaultImageModelId"],
     queryFn: () => appOptionsRepository.getDefaultImageModelId(),
   });
+  const disabledModelIdsQuery = useQuery({
+    queryKey: ["disabledModelIds"],
+    queryFn: () => appOptionsRepository.getDisabledModelIds(),
+  });
   const activeChatId = chatId;
   const showOptions = props.mode === "options";
   const rightOpen = Boolean(props.configOpen);
@@ -179,8 +183,9 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
       listUsableModels(
         ["image", "image-edit"],
         providerConfigsQuery.data ?? [],
+        disabledModelIdsQuery.data ?? [],
       ),
-    [providerConfigsQuery.data],
+    [disabledModelIdsQuery.data, providerConfigsQuery.data],
   );
   const defaultImageModel = useMemo(
     () =>
@@ -196,10 +201,12 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   );
   const activeTitleModel = useMemo(
     () =>
-      listUsableModels(["text"], providerConfigsQuery.data ?? []).find(
-        modelSupportsImageInput,
-      ),
-    [providerConfigsQuery.data],
+      listUsableModels(
+        ["text"],
+        providerConfigsQuery.data ?? [],
+        disabledModelIdsQuery.data ?? [],
+      ).find(modelSupportsImageInput),
+    [disabledModelIdsQuery.data, providerConfigsQuery.data],
   );
   const hasMinimumModelConfig = Boolean(activeModel && activeTitleModel);
   const overlayImage = useMemo(
@@ -337,12 +344,18 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (!providerConfigsQuery.isSuccess || hasMinimumModelConfig || showOptions)
+    if (
+      !providerConfigsQuery.isSuccess ||
+      !disabledModelIdsQuery.isSuccess ||
+      hasMinimumModelConfig ||
+      showOptions
+    )
       return;
     setLeftOpen(false);
     navigate("/options", { replace: true });
   }, [
     hasMinimumModelConfig,
+    disabledModelIdsQuery.isSuccess,
     navigate,
     providerConfigsQuery.isSuccess,
     showOptions,
@@ -1051,6 +1064,7 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
         {showOptions ? (
           <OptionsView
             providerConfigs={providerConfigsQuery.data ?? []}
+            disabledModelIds={disabledModelIdsQuery.data ?? []}
             theme={themeQuery.data ?? "system"}
             defaultImageModelId={defaultImageModel?.id}
             onDefaultImageModel={async (modelId) => {
@@ -1063,6 +1077,16 @@ function WorkspaceRoute(props: { mode?: "options"; configOpen?: boolean }) {
               await queryClient.invalidateQueries({
                 queryKey: ["defaultImageModelId"],
               });
+            }}
+            onDisabledModelIds={async (modelIds) => {
+              const previous = disabledModelIdsQuery.data ?? [];
+              queryClient.setQueryData(["disabledModelIds"], modelIds);
+              try {
+                await appOptionsRepository.setDisabledModelIds(modelIds);
+              } catch (error) {
+                queryClient.setQueryData(["disabledModelIds"], previous);
+                throw error;
+              }
             }}
           />
         ) : (

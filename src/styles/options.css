@@ -18,29 +18,41 @@
   border-top: var(--bs-border-width) solid var(--bs-border-color);
 }
 
-.model-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1;
+.options-view .form-floating > label {
+  font-size: 0.75rem;
+  opacity: 0.52;
 }
 
-.model-status__dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: currentcolor;
-  flex: 0 0 auto;
+.options-view .form-floating > .form-control:focus ~ label,
+.options-view .form-floating > .form-control:not(:placeholder-shown) ~ label,
+.options-view .form-floating > .form-select ~ label {
+  opacity: 0.56;
 }
 
-.model-status--usable {
-  color: var(--bs-success);
+.model-options {
+  display: grid;
+  gap: 0.4rem;
 }
 
-.model-status--incomplete {
+.model-options .form-check-label {
   color: var(--bs-secondary-color);
+  font-size: 0.875rem;
+  opacity: 1;
+}
+
+.model-option-label {
+  display: grid;
+  line-height: 1.25;
+}
+
+.model-option-price {
+  color: var(--bs-tertiary-color);
+  font-size: 0.75rem;
+}
+
+.model-options .form-check-input:disabled ~ .form-check-label {
+  color: var(--bs-secondary-color);
+  opacity: 1;
 }
 
 .general-options {
