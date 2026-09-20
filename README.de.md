@@ -11,7 +11,7 @@ AI Image Assistant ist eine mobile-first PWA für die KI-gestützte Bildgenerier
 - Referenzbilder hochladen oder erzeugte Bilder als Referenz verwenden
 - Ergebnisse vergleichen, herunterladen oder als Ausgangsbild für die weitere Bearbeitung verwenden
 - Sitzungen, Prompt-Verläufe und Ergebnisse lokal verwalten
-- xAI/Grok, OpenAI-kompatible APIs und fal.ai konfigurieren
+- OpenAI-kompatible APIs, fal.ai und OpenRouter konfigurieren
 
 ## Nutzung
 

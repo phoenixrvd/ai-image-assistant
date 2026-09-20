@@ -1,12 +1,6 @@
 ---
-description: 'Prepares work on a new version. Usage: "release-starter", "release-starter: v1.29", "new-version", "new version"'
-mode: subagent
-# Optional OpenCode model provider choice; not GitHub Copilot target support.
-model: github-copilot/gpt-5.4-mini
-temperature: 0.1
-permission:
-  edit: deny
-  bash: allow
+name: starter
+description: 'Prepares work on a new version. Use when the user says "release-starter", "release-starter: v1.29", "new-version", or "new version".'
 ---
 
 ## Task

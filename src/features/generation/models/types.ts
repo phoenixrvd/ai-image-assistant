@@ -1,6 +1,6 @@
 import type { JsonValue, ModelType } from "../../../db/entities";
 
-export type ProviderId = "xai" | "openai" | "fal-ai";
+export type ProviderId = "openai" | "fal-ai" | "openrouter";
 
 export interface ProviderDefinition {
   id: ProviderId;

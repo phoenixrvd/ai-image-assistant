@@ -1,14 +1,10 @@
 ---
-description: 'Runs the local release workflow. Usage: "release-finisher: <version>", "release: <version>", "create release", "squash merge"'
-mode: subagent
-# Optional OpenCode model provider choice; not GitHub Copilot target support.
-model: github-copilot/gpt-5.4
-permission:
-  edit: allow
-  bash: allow
+name: finisher
+description: 'Runs the local release workflow. Use when the user says "release-finisher: <version>", "release: <version>", "create release", or "squash merge".'
 ---
 
 ## Rules (BLOCKER)
+
 - **NEVER push.** Local commit only.
 - No code changes outside the release workflow.
 - Determine release, build, test, and dependency rules.
@@ -18,19 +14,22 @@ permission:
 - Do not create Git tags or GitHub releases unless the user explicitly requests them.
 
 ## Workflow
-Local release workflow according to project rules, without push.
-1. Check the working tree
-2. Determine release, build, and test workflow
-3. Check release branch, target branch, and version value
-4. Run required local checks
-5. Switch to `main`
-6. Update `main` with `git pull --ff-only`
-7. Squash-merge the release branch into `main`
-8. Create one local release commit
-9. Do not push
-10. Report the result completely
 
-## Commit-Format
+Local release workflow according to project rules, without push.
+
+1. Check the working tree.
+2. Determine release, build, and test workflow.
+3. Check release branch, target branch, and version value.
+4. Run required local checks.
+5. Switch to `main`.
+6. Update `main` with `git pull --ff-only`.
+7. Squash-merge the release branch into `main`.
+8. Create one local release commit.
+9. Do not push.
+10. Report the result completely.
+
+## Commit Format
+
 Use the project convention if one exists. Otherwise use this format:
 
 ```text
@@ -48,6 +47,7 @@ v<version>: <concise release summary>
 ```
 
 Rules:
+
 - The subject must summarize the release outcome, not only repeat the version.
 - The body must contain a short summary and grouped release notes when inferable.
 - Group release notes by user-relevant themes such as workflow, docs, agents, CI, runtime, or UI.
@@ -72,6 +72,7 @@ Safety and maintenance
 ```
 
 ## Output
+
 - Commit subject
 - Short description (1 line)
 - Release notes, if inferable

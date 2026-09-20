@@ -1,11 +1,6 @@
 ---
-description: 'Creates local Git commits. Usage: "release-committer:", "commit:", "create commit", "commit changes"'
-mode: subagent
-model: github-copilot/gpt-5.4-mini
-temperature: 0.1
-permission:
-  edit: deny
-  bash: allow
+name: committer
+description: 'Creates local Git commits. Use when the user says "release-committer:", "commit:", "create commit", or "commit changes".'
 ---
 
 ## Task

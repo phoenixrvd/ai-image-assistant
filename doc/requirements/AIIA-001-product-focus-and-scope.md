@@ -45,15 +45,13 @@ This requirement defines the intended product scope for a focused AI image gener
 
 ### Support the planned provider scope
 **Type:** Constraint  
-**Description:** The MVP must target an OpenAI-compatible image-generation API, Grok, and fal.ai as the initial built-in provider integrations. Other providers are not part of the initial built-in provider scope.  
+**Description:** The MVP must target an OpenAI-compatible image-generation API, fal.ai, and OpenRouter as the initial built-in provider integrations. Grok models are available through fal.ai and OpenRouter. Other providers are not part of the initial built-in provider scope.
 **Acceptance Criteria:**
 - The documented MVP provider scope includes an OpenAI-compatible image-generation API.
-- The documented MVP provider scope includes Grok.
 - The documented MVP provider scope includes fal.ai.
+- The documented MVP provider scope includes OpenRouter.
 - Additional built-in provider integrations are outside the initial product scope.
-- OpenRouter is not treated as a separate built-in MVP provider.
-- Custom provider endpoints may still be configured locally when they are compatible with the app's provider configuration model.
-- OpenRouter or similar services may be used only through custom or OpenAI-compatible endpoint configuration when technically compatible.
+- Users may configure custom API URLs for each fixed provider locally.
 
 ### Stay understandable without deep technical knowledge
 **Type:** Non-functional  

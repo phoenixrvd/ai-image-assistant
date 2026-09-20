@@ -1,47 +1,21 @@
 import type { ProviderConfigEntity, ModelType } from "../../../db/entities";
 import type { ProviderDefinition, ProviderId, StaticModel } from "./types";
 
-export const defaultImageModelId = "fal-grok-imagine-edit";
+export const defaultImageModelId = "openrouter-grok-imagine-edit";
 
 export const providerDefinitions: ProviderDefinition[] = [
-  { id: "xai", label: "xAI / Grok", defaultBaseUrl: "https://api.x.ai/v1" },
   {
     id: "openai",
     label: "OpenAI",
     defaultBaseUrl: "https://api.openai.com/v1",
   },
   { id: "fal-ai", label: "fal.ai", defaultBaseUrl: "https://fal.run" },
+  {
+    id: "openrouter",
+    label: "OpenRouter",
+    defaultBaseUrl: "https://openrouter.ai/api/v1",
+  },
 ];
-
-class GrokImagineImage implements StaticModel {
-  id = "grok-imagine-image";
-  providerId = "xai" as const;
-  name = "Imagine Image";
-  type = "image" as const;
-  providerModelName = "grok-imagine-image";
-  supportsReferenceImages = false;
-  defaultParameters = { quality: "low" };
-}
-
-class GrokImagineImageQuality implements StaticModel {
-  id = "grok-imagine-image-quality";
-  providerId = "xai" as const;
-  name = "Imagine Image Quality";
-  type = "image-edit" as const;
-  providerModelName = "grok-imagine-image-quality";
-  supportsReferenceImages = true;
-  defaultParameters = { quality: "low" };
-}
-
-class GrokText implements StaticModel {
-  id = "xai-grok-text";
-  providerId = "xai" as const;
-  name = "Grok 4.20 Non-Reasoning";
-  type = "text" as const;
-  providerModelName = "grok-4.20-0309-non-reasoning";
-  supportsReferenceImages = false;
-  supportsImageInput = true;
-}
 
 class OpenAiImage15 implements StaticModel {
   id = "openai-image-1-5";
@@ -277,10 +251,117 @@ class FalOpenAiGptImage2Edit implements StaticModel {
   };
 }
 
+const openRouterFalModels: StaticModel[] = [
+  {
+    id: "openrouter-openai-gpt-4o-mini",
+    providerId: "openrouter",
+    name: "OpenAI GPT-4o mini",
+    type: "text",
+    providerModelName: "openai/gpt-4o-mini",
+    supportsReferenceImages: false,
+    supportsImageInput: true,
+  },
+  {
+    id: "openrouter-seedream-v5-lite",
+    providerId: "openrouter",
+    name: "Seedream 5.0 Lite",
+    type: "image-edit",
+    providerModelName: "bytedance-seed/seedream-5-0-lite",
+    supportsReferenceImages: true,
+    defaultParameters: { resolution: "2K" },
+  },
+  {
+    id: "openrouter-seedream-v5-pro",
+    providerId: "openrouter",
+    name: "Seedream 5.0 Pro",
+    type: "image-edit",
+    providerModelName: "bytedance-seed/seedream-5-0-pro",
+    supportsReferenceImages: true,
+    defaultParameters: { resolution: "1K" },
+  },
+  {
+    id: "openrouter-flux-2-flex",
+    providerId: "openrouter",
+    name: "FLUX.2 Flex Edit",
+    type: "image-edit",
+    providerModelName: "black-forest-labs/flux.2-flex",
+    supportsReferenceImages: true,
+    defaultParameters: { output_format: "jpeg" },
+  },
+  {
+    id: "openrouter-flux-2-klein-4b",
+    providerId: "openrouter",
+    name: "FLUX.2 Klein 4B Edit",
+    type: "image-edit",
+    providerModelName: "black-forest-labs/flux.2-klein-4b",
+    supportsReferenceImages: true,
+    defaultParameters: { output_format: "jpeg" },
+  },
+  {
+    id: "openrouter-nano-banana-lite",
+    providerId: "openrouter",
+    name: "Nano Banana 2 Lite Edit",
+    type: "image-edit",
+    providerModelName: "google/gemini-3.1-flash-lite-image",
+    supportsReferenceImages: true,
+    defaultParameters: { resolution: "1K" },
+  },
+  {
+    id: "openrouter-nano-banana",
+    providerId: "openrouter",
+    name: "Nano Banana",
+    type: "image",
+    providerModelName: "google/gemini-2.5-flash-image",
+    supportsReferenceImages: false,
+  },
+  {
+    id: "openrouter-nano-banana-2",
+    providerId: "openrouter",
+    name: "Nano Banana 2",
+    type: "image",
+    providerModelName: "google/gemini-3.1-flash-image",
+    supportsReferenceImages: false,
+    defaultParameters: { resolution: "1K" },
+  },
+  {
+    id: "openrouter-nano-banana-2-edit",
+    providerId: "openrouter",
+    name: "Nano Banana 2 Edit",
+    type: "image-edit",
+    providerModelName: "google/gemini-3.1-flash-image",
+    supportsReferenceImages: true,
+    defaultParameters: { resolution: "1K" },
+  },
+  {
+    id: "openrouter-grok-imagine-image",
+    providerId: "openrouter",
+    name: "Grok Imagine",
+    type: "image",
+    providerModelName: "x-ai/grok-imagine-image-quality",
+    supportsReferenceImages: false,
+    defaultParameters: { resolution: "1K" },
+  },
+  {
+    id: "openrouter-grok-imagine-edit",
+    providerId: "openrouter",
+    name: "Grok Imagine Edit",
+    type: "image-edit",
+    providerModelName: "x-ai/grok-imagine-image-quality",
+    supportsReferenceImages: true,
+    defaultParameters: { resolution: "1K" },
+  },
+  {
+    id: "openrouter-openai-gpt-image-2-edit",
+    providerId: "openrouter",
+    name: "OpenAI GPT Image 2 Edit",
+    type: "image-edit",
+    providerModelName: "openai/gpt-image-2",
+    supportsReferenceImages: true,
+    defaultParameters: { quality: "low" },
+  },
+];
+
 const models: StaticModel[] = [
-  new GrokImagineImage(),
-  new GrokImagineImageQuality(),
-  new GrokText(),
   new OpenAiImage15(),
   new OpenAiGpt4oMini(),
   new FalOpenAiGpt4oMini(),
@@ -294,6 +375,7 @@ const models: StaticModel[] = [
   new FalGrokImagineImage(),
   new FalGrokImagineEdit(),
   new FalOpenAiGptImage2Edit(),
+  ...openRouterFalModels,
 ];
 
 export function listModels(): StaticModel[] {

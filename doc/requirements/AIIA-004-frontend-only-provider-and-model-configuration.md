@@ -84,8 +84,8 @@ This requirement defines the MVP scope for a frontend-only application with loca
 **Acceptance Criteria:**
 
 - OpenAI provides `gpt-4o-mini` as its image-capable text model.
-- xAI/Grok provides a non-reasoning Grok model with image input as its image-capable text model.
 - fal.ai provides `openai/gpt-4o-mini` through its OpenRouter endpoint as its image-capable text model.
+- OpenRouter provides `openai/gpt-4o-mini` as its image-capable text model.
 - A usable configuration of any one fixed provider supplies both image generation and automatic chat naming without requiring credentials for another provider.
 - Automatic chat naming uses the first usable image-capable text model returned by the static model registry.
 - Automatic chat naming does not request or enable reasoning.
@@ -114,7 +114,7 @@ This requirement defines the MVP scope for a frontend-only application with loca
 **Description:** Users can set a global default image model in the options area.  
 **Acceptance Criteria:**
 
-- The default is `fal.ai: Grok Imagine Edit`.
+- The default is `OpenRouter: Grok Imagine Edit`.
 - New chats preselect the default model.
 - If the default model is not usable, the first usable image model is selected.
 - Image-derived chats restore the model ID of the selected image's historical generation request instead of the global default.
@@ -140,7 +140,7 @@ This requirement defines the MVP scope for a frontend-only application with loca
 **Description:** The MVP uses fixed built-in providers. Users cannot dynamically create providers or models.  
 **Acceptance Criteria:**
 
-- The application ships with fixed providers for xAI/Grok, OpenAI, and fal.ai.
+- The application ships with fixed providers for OpenAI, fal.ai, and OpenRouter.
 - The GUI does not offer creation or deletion of providers.
 - The GUI does not offer creation or deletion of models.
 - Users can enter custom API URLs for the fixed providers.
