@@ -108,9 +108,12 @@ class AiImageDatabase extends Dexie {
     this.version(DB_SCHEMA_VERSION)
       .stores(PROVIDER_CONFIG_STORE)
       .upgrade(async (transaction) => {
-        await transaction.table("generationRequests").toCollection().modify((request) => {
-          request.snapshotVersion = 1;
-        });
+        await transaction
+          .table("generationRequests")
+          .toCollection()
+          .modify((request) => {
+            request.snapshotVersion = 1;
+          });
       });
     this.on("populate", async (transaction) => {
       await seedDefaultProviderConfigs(transaction.table("providerConfigs"));

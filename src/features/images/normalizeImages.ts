@@ -1,12 +1,17 @@
 import type { NormalizedImageOutput } from "../generation/providers/types";
 
-export async function normalizeImages(images: NormalizedImageOutput[], signal: AbortSignal): Promise<NormalizedImageOutput[]> {
-  return Promise.all(images.map(async (image) => {
-    signal.throwIfAborted();
-    const blob = await scaleImage(image.blob, image.mimeType);
-    signal.throwIfAborted();
-    return { blob, mimeType: blob.type || image.mimeType };
-  }));
+export async function normalizeImages(
+  images: NormalizedImageOutput[],
+  signal: AbortSignal,
+): Promise<NormalizedImageOutput[]> {
+  return Promise.all(
+    images.map(async (image) => {
+      signal.throwIfAborted();
+      const blob = await scaleImage(image.blob, image.mimeType);
+      signal.throwIfAborted();
+      return { blob, mimeType: blob.type || image.mimeType };
+    }),
+  );
 }
 
 async function scaleImage(blob: Blob, mimeType?: string): Promise<Blob> {
@@ -21,9 +26,16 @@ async function scaleImage(blob: Blob, mimeType?: string): Promise<Blob> {
     const context = canvas.getContext("2d");
     if (!context) return blob;
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const outputType = mimeType === "image/png" || mimeType === "image/webp" ? mimeType : "image/jpeg";
+    const outputType =
+      mimeType === "image/png" || mimeType === "image/webp"
+        ? mimeType
+        : "image/jpeg";
     return await new Promise<Blob>((resolve) => {
-      canvas.toBlob((converted) => resolve(converted ?? blob), outputType, outputType === "image/jpeg" ? 0.92 : undefined);
+      canvas.toBlob(
+        (converted) => resolve(converted ?? blob),
+        outputType,
+        outputType === "image/jpeg" ? 0.92 : undefined,
+      );
     });
   } catch {
     // Resizing is best-effort: preserve the original image when decoding or

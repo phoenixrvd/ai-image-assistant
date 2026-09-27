@@ -6,7 +6,11 @@
   width: min(86vw, 320px);
   flex-direction: column;
   padding: 0.75rem;
-  background: color-mix(in srgb, var(--bs-tertiary-bg) 92%, var(--bs-primary) 8%);
+  background: color-mix(
+    in srgb,
+    var(--bs-tertiary-bg) 92%,
+    var(--bs-primary) 8%
+  );
   border-right: var(--bs-border-width) solid var(--bs-border-color);
   box-shadow: var(--bs-box-shadow-lg);
   transform: translateX(-104%);

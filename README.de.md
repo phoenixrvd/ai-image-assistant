@@ -32,8 +32,8 @@ npm run dev
 
 ## Dokumentation
 
-- Produktanforderungen: `doc/requirements/`
-- Architekturentscheidungen: `doc/adr/`
-- Entwicklungsrichtlinien: `doc/guidelines/`
+- Produktanforderungen: `docs/requirements/`
+- Architekturentscheidungen: `docs/adrs/`
+- Entwicklungsrichtlinien: `docs/guidelines/`
 
 ![Logo](public/pwa-192x192.png)

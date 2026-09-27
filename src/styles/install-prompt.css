@@ -13,7 +13,11 @@
   width: min(100%, 900px);
   margin-inline: auto;
   padding: 1rem;
-  background: color-mix(in srgb, var(--bs-tertiary-bg) 90%, var(--bs-primary) 10%);
+  background: color-mix(
+    in srgb,
+    var(--bs-tertiary-bg) 90%,
+    var(--bs-primary) 10%
+  );
   border: var(--bs-border-width) solid rgba(var(--bs-primary-rgb), 0.34);
   border-radius: var(--bs-border-radius-xl);
   box-shadow: var(--bs-box-shadow-sm);

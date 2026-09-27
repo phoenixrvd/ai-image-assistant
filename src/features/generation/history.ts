@@ -8,13 +8,22 @@ export function getHistoricalChatSettings(request: GenerationRequestEntity) {
   return {
     promptDraft: request.prompt,
     activeImageModelId: selectableModelId(request.modelId),
-    imageCount: isValidImageCount(parameters.imageCount) ? parameters.imageCount : undefined,
-    aspectRatio: isValidAspectRatio(parameters.aspectRatio) ? parameters.aspectRatio : undefined,
-    imageInstructions: typeof parameters.imageInstructions === "string" ? parameters.imageInstructions : undefined,
+    imageCount: isValidImageCount(parameters.imageCount)
+      ? parameters.imageCount
+      : undefined,
+    aspectRatio: isValidAspectRatio(parameters.aspectRatio)
+      ? parameters.aspectRatio
+      : undefined,
+    imageInstructions:
+      typeof parameters.imageInstructions === "string"
+        ? parameters.imageInstructions
+        : undefined,
   };
 }
 
-export function readRequestReferences(request: GenerationRequestEntity): StoredReference[] | undefined {
+export function readRequestReferences(
+  request: GenerationRequestEntity,
+): StoredReference[] | undefined {
   if (request.preparedReferences) return request.preparedReferences;
   const value = request.parameters?.references;
   if (Array.isArray(value)) return value.filter(isStoredReference).slice(0, 3);
@@ -25,6 +34,8 @@ export function readRequestReferences(request: GenerationRequestEntity): StoredR
 function isStoredReference(value: JsonValue): value is StoredReference {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   if (typeof value.dataUrl !== "string") return false;
-  return (value.type === "pinned" && typeof value.imageId === "string") ||
-    (value.type === "uploaded" && typeof value.name === "string");
+  return (
+    (value.type === "pinned" && typeof value.imageId === "string") ||
+    (value.type === "uploaded" && typeof value.name === "string")
+  );
 }

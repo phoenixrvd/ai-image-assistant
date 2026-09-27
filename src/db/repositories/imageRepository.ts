@@ -28,7 +28,7 @@ export const imageRepository = {
       sizeBytes: input.blob.size,
       createdAt: now,
       updatedAt: now,
-      ...input
+      ...input,
     };
     await db.images.add(image);
     return image;
@@ -36,5 +36,5 @@ export const imageRepository = {
 
   async togglePinned(id: string, pinned: boolean): Promise<void> {
     await db.images.update(id, { pinned, updatedAt: nowIso() });
-  }
+  },
 };

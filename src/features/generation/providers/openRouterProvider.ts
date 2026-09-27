@@ -8,7 +8,12 @@ import { buildImagePrompt } from "./imagePrompt";
 import { requestChatCompletion } from "./chatCompletion";
 import { base64ToBlob } from "../../images/imageEncoding";
 import { fetchProvider, responseToSafeError } from "./sanitize";
-import type { ImageGenerationInput, NormalizedGenerationOutput, ProviderAdapter, TextGenerationInput } from "./types";
+import type {
+  ImageGenerationInput,
+  NormalizedGenerationOutput,
+  ProviderAdapter,
+  TextGenerationInput,
+} from "./types";
 import i18n from "../../../i18n/i18n";
 
 interface OpenRouterImageResponse {
@@ -20,11 +25,19 @@ export class OpenRouterProvider implements ProviderAdapter {
   id = "openrouter";
   label = "OpenRouter";
 
-  generateText(model: TextModel, providerConfig: ProviderConfigEntity, input: TextGenerationInput): Promise<string> {
-    return requestChatCompletion(model, {
-      url: `${providerConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`,
-      authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
-    }, input);
+  generateText(
+    model: TextModel,
+    providerConfig: ProviderConfigEntity,
+    input: TextGenerationInput,
+  ): Promise<string> {
+    return requestChatCompletion(
+      model,
+      {
+        url: `${providerConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`,
+        authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
+      },
+      input,
+    );
   }
 
   supportsModelType(type: ModelType): boolean {
@@ -75,7 +88,9 @@ export class OpenRouterProvider implements ProviderAdapter {
           model: route.providerModelName,
           prompt: buildImagePrompt(input),
           n: input.imageCount,
-          aspect_ratio: mapAspectRatio(input.aspectRatio),
+          ...(route.omitAspectRatio
+            ? {}
+            : { aspect_ratio: mapAspectRatio(input.aspectRatio) }),
           ...(route.defaultParameters ?? {}),
           ...stripReservedImageParameters(input.parameters),
           ...(route.kind === "edit" && input.references?.length

@@ -6,9 +6,21 @@ import { generationRepository } from "../../db/repositories/generationRepository
 
 export const chatQueries = {
   list: queryOptions({ queryKey: ["chats"], queryFn: chatRepository.list }),
-  messages: (chatId: string) => queryOptions({ queryKey: ["messages", chatId], queryFn: () => messageRepository.listByChat(chatId) }),
-  images: (chatId: string) => queryOptions({ queryKey: ["images", chatId], queryFn: () => imageRepository.listByChat(chatId) }),
-  requests: (chatId: string) => queryOptions({ queryKey: ["generationRequests", chatId], queryFn: () => generationRepository.listRequestsByChat(chatId) }),
+  messages: (chatId: string) =>
+    queryOptions({
+      queryKey: ["messages", chatId],
+      queryFn: () => messageRepository.listByChat(chatId),
+    }),
+  images: (chatId: string) =>
+    queryOptions({
+      queryKey: ["images", chatId],
+      queryFn: () => imageRepository.listByChat(chatId),
+    }),
+  requests: (chatId: string) =>
+    queryOptions({
+      queryKey: ["generationRequests", chatId],
+      queryFn: () => generationRepository.listRequestsByChat(chatId),
+    }),
 };
 
 export async function refreshChatData(client: QueryClient, chatId: string) {

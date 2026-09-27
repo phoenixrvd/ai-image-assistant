@@ -98,14 +98,6 @@
     "sourceUrl": "https://fal.ai/models/openai/gpt-image-2/edit",
     "checkedAt": "2026-09-27"
   },
-  "openrouter-openai-gpt-4o-mini": {
-    "label": {
-      "de": "$0,15 In · $0,60 Out /1M Tokens",
-      "en": "$0.15 in · $0.60 out /1M tokens"
-    },
-    "sourceUrl": "https://openrouter.ai/api/v1/models/openai/gpt-4o-mini/endpoints",
-    "checkedAt": "2026-09-20"
-  },
   "openrouter-seedream-v5-lite": {
     "label": {
       "de": "$0,035/Bild (2K)",
@@ -126,11 +118,11 @@
   },
   "openrouter-flux-2-flex": {
     "label": {
-      "de": "$0,06/MP Ein- & Ausgabe",
-      "en": "$0.06/MP input & output"
+      "de": "$0,07/MP Ausgabe",
+      "en": "$0.07/MP output"
     },
-    "basis": "input and output megapixels",
-    "sourceUrl": "https://openrouter.ai/api/v1/images/models/black-forest-labs/flux.2-flex/endpoints",
+    "basis": "output megapixels; image input is not billed; up to 8 reference images",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/black-forest-labs/flux.2-max/endpoints",
     "checkedAt": "2026-09-27"
   },
   "openrouter-flux-2-klein-4b": {
@@ -151,15 +143,6 @@
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/google/gemini-3.1-flash-lite-image/endpoints",
     "checkedAt": "2026-09-27"
   },
-  "openrouter-nano-banana": {
-    "label": {
-      "de": "$15–54/1M Ausgabebildtokens (je Anbieter)",
-      "en": "$15–54/1M output image tokens (by provider)"
-    },
-    "basis": "create only; output image tokens; OpenRouter lists multiple providers with different tariffs",
-    "sourceUrl": "https://openrouter.ai/api/v1/images/models/google/gemini-2.5-flash-image/endpoints",
-    "checkedAt": "2026-09-27"
-  },
   "openrouter-nano-banana-2": {
     "label": {
       "de": "$60/1M Bildtokens",
@@ -171,11 +154,11 @@
   },
   "openrouter-grok-imagine-image": {
     "label": {
-      "de": "$0,05/Bild (1K) + $0,01/Referenzbild",
-      "en": "$0.05/image (1K) + $0.01/reference image"
+      "de": "ab $0,04/Bild (1K, low) · +$0,01/Referenzbild",
+      "en": "from $0.04/image (1K, low) · +$0.01/reference image"
     },
-    "basis": "resolution=1K; input price applies only with references",
-    "sourceUrl": "https://openrouter.ai/api/v1/images/models/x-ai/grok-imagine-image-quality/endpoints",
+    "basis": "quality=low; resolution=1K; output $0.04; edit +$0.01 image input per reference, up to 3 references; medium or 2K cost $0.06–0.08 per image",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/x-ai/grok-imagine-image-2.0/endpoints",
     "checkedAt": "2026-09-27"
   },
   "openrouter-openai-gpt-image-2-edit": {
@@ -184,7 +167,78 @@
       "en": "$5 text in · $8 image in · $30 image out /1M tokens"
     },
     "basis": "quality=low; text input, image input and image output billed separately per token",
-    "sourceUrl": "https://openrouter.ai/api/v1/images/models/openai/gpt-image-2/endpoints",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/openai/gpt-image-2.5-flare/endpoints",
+    "checkedAt": "2026-09-27"
+  },
+  "openrouter-recraft-v4-1-flash": {
+    "label": {
+      "de": "$0,007/Bild",
+      "en": "$0.007/image"
+    },
+    "basis": "fixed price per image; no reference images; up to 6 images per request",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/recraft/recraft-v4.1-flash/endpoints",
+    "checkedAt": "2026-09-27"
+  },
+  "openrouter-ming-image-design": {
+    "label": {
+      "de": "kostenlos",
+      "en": "free"
+    },
+    "basis": "no charges billed; no reference images",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/inclusionai/ming-image-0.1-design/endpoints",
+    "checkedAt": "2026-09-27"
+  },
+  "openrouter-ming-image-design-layer": {
+    "label": {
+      "de": "kostenlos",
+      "en": "free"
+    },
+    "basis": "no charges billed; one reference image",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/inclusionai/ming-image-0.1-design-layer/endpoints",
+    "checkedAt": "2026-09-27"
+  },
+  "openrouter-qwen-image-3": {
+    "label": {
+      "de": "$0,03/Bild (1K & 2K) · +$0,003/Referenzbild",
+      "en": "$0.03/image (1K & 2K) · +$0.003/reference image"
+    },
+    "basis": "resolution=1K and 2K cost the same; input images $0.003 each, up to 4 references; up to 6 images per request",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/qwen/qwen-image-3/endpoints",
+    "checkedAt": "2026-09-27"
+  },
+  "openrouter-riverflow-v2-5-fast": {
+    "label": {
+      "de": "ab $0,019/Bild (1K)",
+      "en": "from $0.019/image (1K)"
+    },
+    "basis": "1K $0.019, 2K $0.021; up to 4 reference images",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/sourceful/riverflow-v2.5-fast/endpoints",
+    "checkedAt": "2026-09-27"
+  },
+  "openrouter-mai-image-2-6-flash": {
+    "label": {
+      "de": "$1,75 Text-In · $2,50 Bild-In · $19 Bild-Out /1M Tokens",
+      "en": "$1.75 text in · $2.50 image in · $19 image out /1M tokens"
+    },
+    "basis": "token-based; up to 5 reference images",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/microsoft/mai-image-2.6-flash/endpoints",
+    "checkedAt": "2026-09-27"
+  },
+  "openrouter-flux-2-pro": {
+    "label": {
+      "de": "$0,03/MP Ausgabe",
+      "en": "$0.03/MP output"
+    },
+    "basis": "output megapixels; image input is not billed; up to 8 reference images",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/black-forest-labs/flux.2-pro/endpoints",
+    "checkedAt": "2026-09-27"
+  },
+  "openrouter-seed-2-0-mini": {
+    "label": {
+      "de": "$0,10 In · $0,40 Out /1M Tokens",
+      "en": "$0.10 in · $0.40 out /1M tokens"
+    },
+    "sourceUrl": "https://openrouter.ai/bytedance-seed/seed-2.0-mini",
     "checkedAt": "2026-09-27"
   }
 }

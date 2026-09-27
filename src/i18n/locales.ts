@@ -124,7 +124,8 @@ export const resources = {
       errors: {
         unknown: "Unbekannter Fehler.",
         generationFailed: "Die Generierung ist fehlgeschlagen.",
-        invalidGenerationInput: "Bitte prüfe Prompt, Bildanzahl und Bildformat.",
+        invalidGenerationInput:
+          "Bitte prüfe Prompt, Bildanzahl und Bildformat.",
         fileRead: "Datei konnte nicht gelesen werden.",
         activeModel: "Es ist kein verwendbares Bildmodell aktiv.",
         referenceRequired:
@@ -156,7 +157,13 @@ export const resources = {
         newSession: "New Session",
         options: "Options",
       },
-      common: { close: "Close", cancel: "Cancel", save: "Save", none: "none", loading: "Loading …" },
+      common: {
+        close: "Close",
+        cancel: "Cancel",
+        save: "Save",
+        none: "none",
+        loading: "Loading …",
+      },
       options: {
         provider: "Provider",
         general: "General",
@@ -265,7 +272,8 @@ export const resources = {
       errors: {
         unknown: "Unknown error.",
         generationFailed: "Generation failed.",
-        invalidGenerationInput: "Please check the prompt, image count, and aspect ratio.",
+        invalidGenerationInput:
+          "Please check the prompt, image count, and aspect ratio.",
         fileRead: "The file could not be read.",
         activeModel: "There is no usable image model active.",
         referenceRequired: "This model requires at least one reference image.",

@@ -283,11 +283,11 @@ class FalOpenAiGptImage2Edit implements ImageModel {
 
 const openRouterFalModels: StaticModel[] = [
   {
-    id: "openrouter-openai-gpt-4o-mini",
+    id: "openrouter-seed-2-0-mini",
     providerId: "openrouter",
-    name: "OpenAI GPT-4o mini",
+    name: "Seed 2.0 Mini",
     type: "text",
-    providerModelName: "openai/gpt-4o-mini",
+    providerModelName: "bytedance-seed/seed-2.0-mini",
     supportsImageInput: true,
   },
   {
@@ -327,15 +327,15 @@ const openRouterFalModels: StaticModel[] = [
   {
     id: "openrouter-flux-2-flex",
     providerId: "openrouter",
-    name: "FLUX.2 Flex Edit",
+    name: "FLUX.2 Max Edit",
     type: "image-edit",
     routes: {
       create: {
-        providerModelName: "black-forest-labs/flux.2-flex",
+        providerModelName: "black-forest-labs/flux.2-max",
         defaultParameters: { output_format: "jpeg" },
       },
       edit: {
-        providerModelName: "black-forest-labs/flux.2-flex",
+        providerModelName: "black-forest-labs/flux.2-max",
         defaultParameters: { output_format: "jpeg" },
       },
     },
@@ -373,13 +373,6 @@ const openRouterFalModels: StaticModel[] = [
     },
   },
   {
-    id: "openrouter-nano-banana",
-    providerId: "openrouter",
-    name: "Nano Banana",
-    type: "image",
-    routes: { create: { providerModelName: "google/gemini-2.5-flash-image" } },
-  },
-  {
     id: "openrouter-nano-banana-2",
     providerId: "openrouter",
     name: "Nano Banana 2",
@@ -398,34 +391,137 @@ const openRouterFalModels: StaticModel[] = [
   {
     id: "openrouter-grok-imagine-image",
     providerId: "openrouter",
-    name: "Grok Imagine",
+    name: "Grok Imagine 2.0",
     type: "image",
     routes: {
       create: {
-        providerModelName: "x-ai/grok-imagine-image-quality",
-        defaultParameters: { resolution: "1K" },
+        providerModelName: "x-ai/grok-imagine-image-2.0",
+        defaultParameters: { resolution: "1K", quality: "low" },
       },
       edit: {
-        providerModelName: "x-ai/grok-imagine-image-quality",
-        defaultParameters: { resolution: "1K" },
+        providerModelName: "x-ai/grok-imagine-image-2.0",
+        defaultParameters: { resolution: "1K", quality: "low" },
       },
     },
   },
   {
     id: "openrouter-openai-gpt-image-2-edit",
     providerId: "openrouter",
-    name: "OpenAI GPT Image 2 Edit",
+    name: "OpenAI GPT Image 2.5 Flare Edit",
     type: "image-edit",
     routes: {
       create: {
-        providerModelName: "openai/gpt-image-2",
+        providerModelName: "openai/gpt-image-2.5-flare",
         defaultParameters: { quality: "low" },
         maxImagesPerRequest: 10,
       },
       edit: {
-        providerModelName: "openai/gpt-image-2",
+        providerModelName: "openai/gpt-image-2.5-flare",
         defaultParameters: { quality: "low" },
         maxImagesPerRequest: 10,
+      },
+    },
+  },
+  {
+    id: "openrouter-recraft-v4-1-flash",
+    providerId: "openrouter",
+    name: "Recraft V4.1 Flash",
+    type: "image",
+    routes: {
+      create: {
+        providerModelName: "recraft/recraft-v4.1-flash",
+        maxImagesPerRequest: 6,
+      },
+    },
+  },
+  {
+    id: "openrouter-ming-image-design",
+    providerId: "openrouter",
+    name: "Ming Image Design",
+    type: "image",
+    routes: {
+      create: {
+        providerModelName: "inclusionai/ming-image-0.1-design",
+        defaultParameters: { output_format: "png" },
+        omitAspectRatio: true,
+      },
+    },
+  },
+  {
+    id: "openrouter-ming-image-design-layer",
+    providerId: "openrouter",
+    name: "Ming Image Design Layer",
+    type: "image-edit",
+    routes: {
+      create: {
+        providerModelName: "inclusionai/ming-image-0.1-design-layer",
+        defaultParameters: { output_format: "png" },
+        omitAspectRatio: true,
+      },
+      edit: {
+        providerModelName: "inclusionai/ming-image-0.1-design-layer",
+        defaultParameters: { output_format: "png" },
+        omitAspectRatio: true,
+      },
+    },
+  },
+  {
+    id: "openrouter-qwen-image-3",
+    providerId: "openrouter",
+    name: "Qwen Image 3",
+    type: "image-edit",
+    routes: {
+      create: {
+        providerModelName: "qwen/qwen-image-3",
+        defaultParameters: { resolution: "1K" },
+        maxImagesPerRequest: 6,
+      },
+      edit: {
+        providerModelName: "qwen/qwen-image-3",
+        defaultParameters: { resolution: "1K" },
+        maxImagesPerRequest: 6,
+      },
+    },
+  },
+  {
+    id: "openrouter-riverflow-v2-5-fast",
+    providerId: "openrouter",
+    name: "Riverflow V2.5 Fast",
+    type: "image-edit",
+    routes: {
+      create: {
+        providerModelName: "sourceful/riverflow-v2.5-fast",
+        defaultParameters: { resolution: "1K" },
+      },
+      edit: {
+        providerModelName: "sourceful/riverflow-v2.5-fast",
+        defaultParameters: { resolution: "1K" },
+      },
+    },
+  },
+  {
+    id: "openrouter-mai-image-2-6-flash",
+    providerId: "openrouter",
+    name: "MAI Image 2.6 Flash",
+    type: "image-edit",
+    routes: {
+      create: { providerModelName: "microsoft/mai-image-2.6-flash" },
+      edit: { providerModelName: "microsoft/mai-image-2.6-flash" },
+    },
+  },
+  {
+    id: "openrouter-flux-2-pro",
+    providerId: "openrouter",
+    name: "FLUX.2 Pro Edit",
+    type: "image-edit",
+    routes: {
+      create: {
+        providerModelName: "black-forest-labs/flux.2-pro",
+        defaultParameters: { output_format: "jpeg" },
+      },
+      edit: {
+        providerModelName: "black-forest-labs/flux.2-pro",
+        defaultParameters: { output_format: "jpeg" },
       },
     },
   },
@@ -461,6 +557,10 @@ export const historicalEditModels: Record<
   "openrouter-nano-banana-2-edit": {
     currentId: "openrouter-nano-banana-2",
     name: "Nano Banana 2 Edit",
+  },
+  "openrouter-nano-banana": {
+    currentId: "openrouter-nano-banana-lite",
+    name: "Nano Banana",
   },
   "openrouter-grok-imagine-edit": {
     currentId: "openrouter-grok-imagine-image",

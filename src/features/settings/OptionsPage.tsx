@@ -15,10 +15,7 @@ import {
   listModelsByProvider,
 } from "../generation/models/registry";
 import { providerDefinitions } from "../generation/models/catalogue";
-import type {
-  ProviderId,
-  StaticModel,
-} from "../generation/models/types";
+import type { ProviderId, StaticModel } from "../generation/models/types";
 import { getModelPriceLabel } from "../generation/models/pricing";
 import { appMetadata } from "../../metadata";
 import type { AppLanguage } from "../../i18n/types";
@@ -34,7 +31,11 @@ export function OptionsPage() {
 
   return (
     <section className="options-view container-xxl py-3">
-      {error && <p className="alert alert-danger" role="alert">{error.message}</p>}
+      {error && (
+        <p className="alert alert-danger" role="alert">
+          {error.message}
+        </p>
+      )}
       <section className="options-section" aria-labelledby="providers-heading">
         <div className="d-flex align-items-center justify-content-between gap-3">
           <h2 id="providers-heading" className="h5 mb-0">
@@ -43,8 +44,9 @@ export function OptionsPage() {
         </div>
         {providerDefinitions.map((definition) => {
           const provider =
-            config.providerConfigs.find((entry) => entry.id === definition.id) ??
-            createProviderFallback(definition.id);
+            config.providerConfigs.find(
+              (entry) => entry.id === definition.id,
+            ) ?? createProviderFallback(definition.id);
           return (
             <ProviderForm
               key={definition.id}
@@ -53,7 +55,9 @@ export function OptionsPage() {
               disabledModelIds={config.disabledModelIds}
               estimates={modelEstimateQuery.data}
               onChange={(value) => save.mutate({ kind: "provider", value })}
-              onDisabledModelIds={(value) => save.mutate({ kind: "disabledModels", value })}
+              onDisabledModelIds={(value) =>
+                save.mutate({ kind: "disabledModels", value })
+              }
             />
           );
         })}
@@ -70,7 +74,11 @@ export function OptionsPage() {
               value={config.defaultModel?.id ?? ""}
               disabled={usableImageModels.length === 0}
               onChange={(event) =>
-                save.mutate({ kind: "defaultModel", value: event.target.value, previous: config.defaultModel?.id })
+                save.mutate({
+                  kind: "defaultModel",
+                  value: event.target.value,
+                  previous: config.defaultModel?.id,
+                })
               }
             >
               {usableImageModels.length === 0 ? (
@@ -115,7 +123,12 @@ export function OptionsPage() {
                   id={`theme-${option.id}`}
                   autoComplete="off"
                   checked={(theme.data ?? "system") === option.id}
-                  onChange={() => save.mutate({ kind: "theme", value: option.id as ThemeMode })}
+                  onChange={() =>
+                    save.mutate({
+                      kind: "theme",
+                      value: option.id as ThemeMode,
+                    })
+                  }
                 />
                 <label
                   className="btn btn-outline-secondary"
@@ -132,7 +145,10 @@ export function OptionsPage() {
               id="language"
               value={i18n.language}
               onChange={(event) =>
-                save.mutate({ kind: "language", value: event.target.value as AppLanguage })
+                save.mutate({
+                  kind: "language",
+                  value: event.target.value as AppLanguage,
+                })
               }
             >
               <option value="de">{t("options.german")}</option>

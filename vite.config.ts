@@ -7,7 +7,8 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const appVersion = env.VITE_APP_VERSION ?? "dev";
-  const buildRevision = env.VITE_BUILD_REVISION ?? env.VITE_GIT_COMMIT ?? appVersion;
+  const buildRevision =
+    env.VITE_BUILD_REVISION ?? env.VITE_GIT_COMMIT ?? appVersion;
 
   return {
     base: "/",
@@ -34,41 +35,41 @@ export default defineConfig(({ mode }) => {
           background_color: "#111827",
           theme_color: "#111827",
           icons: [
-              {
+            {
               src: "pwa.svg?v=" + buildRevision,
               sizes: "any",
               type: "image/svg+xml",
-              purpose: "any maskable"
+              purpose: "any maskable",
             },
             {
               src: "pwa-192x192.png?v=" + buildRevision,
               sizes: "192x192",
               type: "image/png",
-              purpose: "any"
+              purpose: "any",
             },
             {
               src: "pwa-512x512.png?v=" + buildRevision,
               sizes: "512x512",
               type: "image/png",
-              purpose: "any"
+              purpose: "any",
             },
             {
               src: "maskable-192x192.png?v=" + buildRevision,
               sizes: "192x192",
               type: "image/png",
-              purpose: "maskable"
+              purpose: "maskable",
             },
             {
               src: "maskable-512x512.png?v=" + buildRevision,
               sizes: "512x512",
               type: "image/png",
-              purpose: "maskable"
-            }
-          ]
-        }
+              purpose: "maskable",
+            },
+          ],
+        },
       }),
-      versionPwaManifestLink(buildRevision)
-    ]
+      versionPwaManifestLink(buildRevision),
+    ],
   };
 });
 
@@ -85,8 +86,11 @@ function versionPwaManifestLink(buildRevision: string) {
     closeBundle() {
       const indexPath = resolve(root, outDir, "index.html");
       const html = readFileSync(indexPath, "utf8");
-      const updated = html.replace(/<link rel="manifest" href="([^"]*manifest\.webmanifest)">/, `<link rel="manifest" href="$1?v=${buildRevision}">`);
+      const updated = html.replace(
+        /<link rel="manifest" href="([^"]*manifest\.webmanifest)">/,
+        `<link rel="manifest" href="$1?v=${buildRevision}">`,
+      );
       writeFileSync(indexPath, updated);
-    }
+    },
   };
 }

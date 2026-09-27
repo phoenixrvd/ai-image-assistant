@@ -4,7 +4,12 @@ import type {
   ProviderConfigEntity,
 } from "../../../db/entities";
 import type { SelectedImageRoute, TextModel } from "../models/types";
-import type { ImageGenerationInput, NormalizedGenerationOutput, ProviderAdapter, TextGenerationInput } from "./types";
+import type {
+  ImageGenerationInput,
+  NormalizedGenerationOutput,
+  ProviderAdapter,
+  TextGenerationInput,
+} from "./types";
 import { buildImagePrompt } from "./imagePrompt";
 import { requestChatCompletion } from "./chatCompletion";
 import { dataUrlToBlob } from "../../images/imageEncoding";
@@ -85,12 +90,20 @@ export class FalAiProvider implements ProviderAdapter {
     return { images, rawMetadata: { seed: payload.seed ?? null } };
   }
 
-  generateText(model: TextModel, providerConfig: ProviderConfigEntity, input: TextGenerationInput): Promise<string> {
+  generateText(
+    model: TextModel,
+    providerConfig: ProviderConfigEntity,
+    input: TextGenerationInput,
+  ): Promise<string> {
     const baseUrl = providerConfig.baseUrl.trim().replace(/\/+$/, "");
-    return requestChatCompletion(model, {
-      url: `${baseUrl}/openrouter/router/openai/v1/chat/completions`,
-      authorization: `Key ${providerConfig.apiKey ?? ""}`,
-    }, input);
+    return requestChatCompletion(
+      model,
+      {
+        url: `${baseUrl}/openrouter/router/openai/v1/chat/completions`,
+        authorization: `Key ${providerConfig.apiKey ?? ""}`,
+      },
+      input,
+    );
   }
 }
 

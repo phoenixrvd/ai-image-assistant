@@ -18,16 +18,47 @@ export function WorkspaceIndex() {
   const [error, setError] = useState<Error>();
   useEffect(() => {
     if (!chats.isSuccess || !models.ready) return;
-    if (!models.usable) { navigate("/options", { replace: true }); return; }
-    if (chats.data[0]) { navigate(`/chats/${chats.data[0].id}`, { replace: true }); return; }
+    if (!models.usable) {
+      navigate("/options", { replace: true });
+      return;
+    }
+    if (chats.data[0]) {
+      navigate(`/chats/${chats.data[0].id}`, { replace: true });
+      return;
+    }
     let active = true;
-    opening ??= chatRepository.create(t("navigation.newSession"), models.defaultModel?.id).finally(() => { opening = undefined; });
-    void opening.then(async (chat) => {
-      await client.invalidateQueries(chatQueries.list);
-      if (active) navigate(`/chats/${chat.id}`, { replace: true });
-    }).catch((failure) => { if (active) setError(failure); });
-    return () => { active = false; };
-  }, [chats.isSuccess, chats.data, models.ready, models.usable, models.defaultModel?.id, navigate, client, t]);
+    opening ??= chatRepository
+      .create(t("navigation.newSession"), models.defaultModel?.id)
+      .finally(() => {
+        opening = undefined;
+      });
+    void opening
+      .then(async (chat) => {
+        await client.invalidateQueries(chatQueries.list);
+        if (active) navigate(`/chats/${chat.id}`, { replace: true });
+      })
+      .catch((failure) => {
+        if (active) setError(failure);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    chats.isSuccess,
+    chats.data,
+    models.ready,
+    models.usable,
+    models.defaultModel?.id,
+    navigate,
+    client,
+    t,
+  ]);
   const failure = error ?? chats.error ?? models.error;
-  return failure ? <p className="alert alert-danger" role="alert">{failure.message}</p> : <p role="status">{t("common.loading")}</p>;
+  return failure ? (
+    <p className="alert alert-danger" role="alert">
+      {failure.message}
+    </p>
+  ) : (
+    <p role="status">{t("common.loading")}</p>
+  );
 }

@@ -12,7 +12,10 @@ export function sanitizeProviderError(error: unknown): string {
   return i18n.t("errors.generationFailed");
 }
 
-export async function fetchProvider(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+export async function fetchProvider(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
   try {
     return await fetch(input, init);
   } catch (error) {

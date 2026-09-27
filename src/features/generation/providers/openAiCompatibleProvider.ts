@@ -138,10 +138,14 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
     providerConfig: ProviderConfigEntity,
     input: TextGenerationInput,
   ): Promise<string> {
-    return requestChatCompletion(model, {
-      url: `${providerConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`,
-      authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
-    }, input);
+    return requestChatCompletion(
+      model,
+      {
+        url: `${providerConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`,
+        authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
+      },
+      input,
+    );
   }
 }
 

@@ -12,7 +12,12 @@ export type ChatSettings = {
 };
 
 export function isValidImageCount(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 4;
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 4
+  );
 }
 
 export function isValidAspectRatio(value: unknown): value is ChatAspectRatio {

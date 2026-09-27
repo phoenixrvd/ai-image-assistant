@@ -19,6 +19,7 @@ export interface ModelRoute {
   providerModelName: string;
   defaultParameters?: Record<string, JsonValue>;
   maxImagesPerRequest?: number;
+  omitAspectRatio?: boolean;
 }
 
 export type SelectedImageRoute = ModelRoute & { kind: "create" | "edit" };

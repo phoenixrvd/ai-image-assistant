@@ -1,7 +1,12 @@
 import { db } from "../database";
 import type { ChatEntity, ImageEntity, MessageEntity } from "../entities";
 import { createId, nowIso } from "../id";
-import { isValidAspectRatio, isValidImageCount, type ChatSettings, type ChatUploadedReference } from "../../features/chats/types";
+import {
+  isValidAspectRatio,
+  isValidImageCount,
+  type ChatSettings,
+  type ChatUploadedReference,
+} from "../../features/chats/types";
 
 const maxUploadedReferences = 3;
 
@@ -197,8 +202,12 @@ export function parseChatSettings(chat: ChatEntity): ChatSettings {
   return sanitizeChatSettings({
     promptDraft: readString(settings.promptDraft),
     activeImageModelId: readString(settings.activeImageModelId),
-    imageCount: isValidImageCount(settings.imageCount) ? settings.imageCount : undefined,
-    aspectRatio: isValidAspectRatio(settings.aspectRatio) ? settings.aspectRatio : undefined,
+    imageCount: isValidImageCount(settings.imageCount)
+      ? settings.imageCount
+      : undefined,
+    aspectRatio: isValidAspectRatio(settings.aspectRatio)
+      ? settings.aspectRatio
+      : undefined,
     imageInstructions:
       readString(settings.imageInstructions) ??
       readString(metadata.imageInstructions),

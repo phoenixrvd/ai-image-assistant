@@ -9,7 +9,8 @@ export function AppRuntime() {
   useEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
-      const resolved = theme === "system" ? (media.matches ? "dark" : "light") : theme;
+      const resolved =
+        theme === "system" ? (media.matches ? "dark" : "light") : theme;
       document.documentElement.dataset.bsTheme = resolved;
       document.documentElement.dataset.theme = resolved;
     };
@@ -18,12 +19,19 @@ export function AppRuntime() {
     return () => media.removeEventListener("change", apply);
   }, [theme]);
   useEffect(() => {
-    if (!active || !("wakeLock" in navigator) || !window.isSecureContext) return;
+    if (!active || !("wakeLock" in navigator) || !window.isSecureContext)
+      return;
     let disposed = false;
     let acquiring = false;
     let lock: WakeLockSentinel | undefined;
     const acquire = async () => {
-      if (disposed || acquiring || (lock && !lock.released) || document.visibilityState !== "visible") return;
+      if (
+        disposed ||
+        acquiring ||
+        (lock && !lock.released) ||
+        document.visibilityState !== "visible"
+      )
+        return;
       acquiring = true;
       try {
         const next = await navigator.wakeLock.request("screen");
@@ -31,14 +39,19 @@ export function AppRuntime() {
         else lock = next;
       } catch {
         // Best effort: request processing works without a wake lock.
-      } finally { acquiring = false; }
+      } finally {
+        acquiring = false;
+      }
     };
     void acquire();
     document.addEventListener("visibilitychange", acquire);
     return () => {
       disposed = true;
       document.removeEventListener("visibilitychange", acquire);
-      if (lock && !lock.released) void lock.release().catch(() => { /* Already released by the browser. */ });
+      if (lock && !lock.released)
+        void lock.release().catch(() => {
+          /* Already released by the browser. */
+        });
     };
   }, [active]);
   return null;

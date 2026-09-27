@@ -48,9 +48,18 @@ body::before {
   pointer-events: none;
   content: "";
   background:
-    radial-gradient(circle at top left, rgba(var(--bs-primary-rgb), 0.22), transparent 30rem),
+    radial-gradient(
+      circle at top left,
+      rgba(var(--bs-primary-rgb), 0.22),
+      transparent 30rem
+    ),
     radial-gradient(circle at 78% 8%, rgb(14 165 233 / 12%), transparent 28rem),
-    linear-gradient(135deg, rgb(var(--bs-body-bg-rgb)) 0%, rgb(var(--bs-body-bg-rgb)) 42%, rgba(var(--bs-primary-rgb), 0.06) 100%),
+    linear-gradient(
+      135deg,
+      rgb(var(--bs-body-bg-rgb)) 0%,
+      rgb(var(--bs-body-bg-rgb)) 42%,
+      rgba(var(--bs-primary-rgb), 0.06) 100%
+    ),
     var(--bs-body-bg);
 }
 
@@ -61,7 +70,8 @@ body::after {
   height: 2rem;
   pointer-events: none;
   content: "";
-  box-shadow: 0 0 calc(var(--glass-blur-soft) + 1rem) 0.2rem rgba(var(--bs-body-bg-rgb), 1);
+  box-shadow: 0 0 calc(var(--glass-blur-soft) + 1rem) 0.2rem
+    rgba(var(--bs-body-bg-rgb), 1);
 }
 
 .image-preview-button:focus-visible,

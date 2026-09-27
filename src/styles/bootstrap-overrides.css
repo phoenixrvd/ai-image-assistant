@@ -52,7 +52,11 @@
 .form-control,
 .form-select {
   color: var(--bs-body-color);
-  background-color: color-mix(in srgb, var(--bs-tertiary-bg) 84%, var(--bs-body-bg));
+  background-color: color-mix(
+    in srgb,
+    var(--bs-tertiary-bg) 84%,
+    var(--bs-body-bg)
+  );
   border-color: var(--bs-border-color);
 }
 

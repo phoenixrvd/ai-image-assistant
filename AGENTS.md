@@ -6,7 +6,8 @@
 - Dev server: `npm run dev` starts Vite on `0.0.0.0`.
 - For feature changes, do not run `npm run build`; the application is verified through the user's active watch mode. The build writes build metadata, runs `tsc -b`, then `vite build`.
 - Typecheck only: `npm run typecheck`.
-- No test or lint scripts are currently defined.
+- Tests: `npm run test` (Vitest).
+- Formatting: Prettier with `.prettierrc.json`. `npm run format` writes all files, `npm run format:check` verifies. A native git pre-commit hook (`.githooks/`, activated via the `prepare` script) formats staged files automatically. Do not hand-wrap or hand-compact code.
 - After changing `public/pwa.svg`, run `npm run generate:icons`.
 
 ## Architecture
@@ -21,9 +22,9 @@
 
 ## Docs To Check
 
-- Read relevant requirements in `doc/requirements/` before changing product behavior.
-- Read relevant ADRs in `doc/adr/` before changing architecture, persistence, provider behavior, PWA/versioning, or deployment.
-- Follow relevant coding guidelines in `doc/guidelines/`, especially coding rules, error handling, refactoring, and principles.
+- Read relevant requirements in `docs/requirements/` before changing product behavior.
+- Read relevant ADRs in `docs/adrs/` before changing architecture, persistence, provider behavior, PWA/versioning, or deployment.
+- Follow relevant coding guidelines in `docs/guidelines/`, especially coding rules, error handling, refactoring, and principles.
 - Useful ADRs: frontend-only architecture, IndexedDB/Dexie persistence, layered frontend architecture, provider abstraction, direct request processing, PWA versioning, GitHub Pages deployment.
 - Prefer executable config over docs when they conflict.
 

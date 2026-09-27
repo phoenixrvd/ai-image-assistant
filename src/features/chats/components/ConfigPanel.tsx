@@ -158,7 +158,6 @@ export function ConfigPanel(props: {
   );
 }
 
-
 function PromptOptions(props: {
   pinnedImages: ImageEntity[];
   referencesRequired: boolean;

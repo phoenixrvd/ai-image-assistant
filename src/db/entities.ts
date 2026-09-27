@@ -1,12 +1,17 @@
-import type { ReferenceInput, StoredReference } from "../features/generation/types";
+import type {
+  ReferenceInput,
+  StoredReference,
+} from "../features/generation/types";
 
 export type EntityId = string;
 export type ModelType = "text" | "image" | "image-edit";
 export type MessageRole = "user" | "assistant" | "system";
-export type GenerationStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled";
+export type GenerationStatus =
+  "pending" | "running" | "succeeded" | "failed" | "cancelled";
 export type ThemeMode = "light" | "dark" | "system";
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export interface TimestampedEntity {
   createdAt: string;

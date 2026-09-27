@@ -15,7 +15,7 @@ const pngIcons = [
   ["public/pwa-512x512.png", 512],
   ["public/maskable-192x192.png", 192],
   ["public/maskable-512x512.png", 512],
-  ["public/apple-touch-icon.png", 180]
+  ["public/apple-touch-icon.png", 180],
 ];
 
 async function renderPng(size) {
@@ -49,7 +49,11 @@ function createIco(images) {
     return directory;
   });
 
-  return Buffer.concat([header, ...directories, ...images.map(({ buffer }) => buffer)]);
+  return Buffer.concat([
+    header,
+    ...directories,
+    ...images.map(({ buffer }) => buffer),
+  ]);
 }
 
 await mkdir(fileURLToPath(new URL("public/", root)), { recursive: true });
@@ -65,8 +69,8 @@ await writeFile(new URL("public/favicon.svg", root), await readFile(source));
 const faviconImages = await Promise.all(
   [16, 32, 48].map(async (size) => ({
     size,
-    buffer: await renderPng(size)
-  }))
+    buffer: await renderPng(size),
+  })),
 );
 
 await writeFile(new URL("public/favicon.ico", root), createIco(faviconImages));

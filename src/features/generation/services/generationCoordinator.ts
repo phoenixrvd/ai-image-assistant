@@ -48,7 +48,11 @@ export const generationCoordinator = {
 
   cancel(chatId: string): void {
     const active = jobs.get(chatId);
-    if (!active || (active.job.phase !== "preparing" && active.job.phase !== "running")) return;
+    if (
+      !active ||
+      (active.job.phase !== "preparing" && active.job.phase !== "running")
+    )
+      return;
     active.job = { ...active.job, phase: "cancelling" };
     active.controller.abort();
     notify();
@@ -104,7 +108,12 @@ async function runGeneration(
       signal: active.controller.signal,
       setRunning: (estimatedSeconds) => {
         if (active.controller.signal.aborted) return;
-        active.job = { ...active.job, phase: "running", startedAt: Date.now(), estimatedSeconds: Math.max(estimatedSeconds, 1) };
+        active.job = {
+          ...active.job,
+          phase: "running",
+          startedAt: Date.now(),
+          estimatedSeconds: Math.max(estimatedSeconds, 1),
+        };
         notify();
       },
     });
@@ -117,7 +126,11 @@ async function runGeneration(
       notify();
       return "cancelled";
     }
-    active.job = { ...active.job, phase: "failed", error: sanitizeProviderError(error) };
+    active.job = {
+      ...active.job,
+      phase: "failed",
+      error: sanitizeProviderError(error),
+    };
     notify();
     return "failed";
   } finally {
