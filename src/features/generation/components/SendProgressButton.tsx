@@ -1,8 +1,19 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import type { GenerationJob } from "../services/generationCoordinator";
 import { Send, Square } from "lucide-react";
 
-export function SendProgressButton(props: { progressPercent: number; loading: boolean; disabled: boolean; ariaLabel: string; onCancel: () => void }) {
-  const style = { "--progress": `${Math.max(0, Math.min(100, props.progressPercent))}%` } as CSSProperties;
+export function SendProgressButton(props: { job?: GenerationJob; loading: boolean; disabled: boolean; ariaLabel: string; onCancel: () => void }) {
+  const [now, setNow] = useState(Date.now);
+  const job = props.job;
+  useEffect(() => {
+    if (job?.phase !== "running") return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(timer);
+  }, [job?.phase, job?.startedAt]);
+  const progress = job?.phase === "succeeded" ? 100 : job?.phase === "running" && job.startedAt && job.estimatedSeconds
+    ? Math.min(95, Math.max(0, now - job.startedAt) / (job.estimatedSeconds * 1000) * 100) : 0;
+  const style = { "--progress": `${progress}%` } as CSSProperties;
 
   return (
     <button

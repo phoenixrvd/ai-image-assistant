@@ -1,104 +1,64 @@
 import { db } from "../database";
-import type { GenerationRequestEntity, GenerationResultEntity, JsonValue, ModelType } from "../entities";
+import type { GenerationRequestEntity, GenerationResultEntity, JsonValue } from "../entities";
+import type { ReferenceInput, StoredReference } from "../../features/generation/types";
 import { createId, nowIso } from "../id";
-
-type GeneratedImageInput = {
-  blob: Blob;
-  mimeType?: string;
-};
 
 export const generationRepository = {
   async createPendingImageGeneration(input: {
     chatId: string;
     modelId: string;
-    type: ModelType;
     prompt: string;
-    parameters?: Record<string, JsonValue>;
-  }): Promise<{ requestId: string }> {
+    parameters: Record<string, JsonValue>;
+    referenceInputs: ReferenceInput[];
+  }): Promise<string> {
     const now = nowIso();
     const requestId = createId("req");
-    await db.generationRequests.add({
-      id: requestId,
-      chatId: input.chatId,
-      modelId: input.modelId,
-      type: input.type,
-      prompt: input.prompt,
-      parameters: input.parameters,
-      status: "pending",
-      createdAt: now,
-      updatedAt: now
+    await db.transaction("rw", db.chats, db.generationRequests, async () => {
+      if (!(await db.chats.get(input.chatId))) throw new DOMException("Chat removed", "AbortError");
+      await db.generationRequests.add({
+        ...input, id: requestId, type: "image", snapshotVersion: 2,
+        status: "pending", createdAt: now, updatedAt: now,
+      });
     });
-    return { requestId };
+    return requestId;
   },
 
-  async markImageGenerationRunning(requestId: string): Promise<void> {
-    await db.generationRequests.update(requestId, { status: "running", updatedAt: nowIso() });
-  },
-
-  async cancelImageGeneration(requestId: string): Promise<void> {
-    await db.generationRequests.update(requestId, { status: "cancelled", updatedAt: nowIso() });
+  async markImageGenerationRunning(requestId: string, preparedReferences: StoredReference[]): Promise<void> {
+    await db.transaction("rw", db.generationRequests, async () => {
+      const request = await db.generationRequests.get(requestId);
+      if (request?.status !== "pending") throw new DOMException("Request no longer pending", "AbortError");
+      await db.generationRequests.update(requestId, {
+        status: "running", preparedReferences, updatedAt: nowIso(),
+      });
+    });
   },
 
   async completeImageGenerationSuccess(input: {
     requestId: string;
-    chatId: string;
-    modelId: string;
-    prompt: string;
-    type: ModelType;
-    parameters?: Record<string, JsonValue>;
     rawMetadata?: Record<string, JsonValue>;
-    images: GeneratedImageInput[];
-  }): Promise<boolean> {
-    const now = nowIso();
-    const messageId = createId("msg");
-    const resultId = createId("res");
-    const imageIds = input.images.map(() => createId("img"));
-
-    let committed = false;
-    await db.transaction("rw", db.messages, db.chats, db.generationRequests, db.generationResults, db.images, async () => {
+    images: Array<{ blob: Blob; mimeType?: string }>;
+    signal: AbortSignal;
+  }): Promise<void> {
+    await db.transaction("rw", db.messages, db.chats, db.generationRequests, db.generationResults, db.images, async (transaction) => {
+      input.signal.throwIfAborted();
+      const abort = () => transaction.abort();
+      input.signal.addEventListener("abort", abort, { once: true });
+      transaction.on("complete", () => input.signal.removeEventListener("abort", abort));
+      transaction.on("abort", () => input.signal.removeEventListener("abort", abort));
       const request = await db.generationRequests.get(input.requestId);
-      if (!request || request.status !== "running") return;
-      if (!(await db.chats.get(input.chatId))) return;
-
-      await db.messages.add({ id: messageId, chatId: input.chatId, role: "user", content: input.prompt, requestId: input.requestId, createdAt: now, updatedAt: now });
-
-      await db.generationRequests.update(input.requestId, {
-        messageId,
-        chatId: input.chatId,
-        modelId: input.modelId,
-        type: input.type,
-        prompt: input.prompt,
-        parameters: input.parameters,
-        status: "succeeded",
-        updatedAt: now
-      });
-      await db.generationResults.add({ id: resultId, requestId: input.requestId, chatId: input.chatId, messageId, type: input.type, imageIds, rawMetadata: input.rawMetadata, createdAt: now, updatedAt: now });
-      await db.images.bulkAdd(
-        input.images.map((image, index) => ({
-          id: imageIds[index],
-          chatId: input.chatId,
-          messageId,
-          requestId: input.requestId,
-          resultId,
-          blob: image.blob,
-          mimeType: image.mimeType,
-          sizeBytes: image.blob.size,
-          prompt: input.prompt,
-          modelId: input.modelId,
-          parameters: input.parameters,
-          createdAt: now,
-          updatedAt: now
-        }))
-      );
-      await db.chats.update(input.chatId, { lastMessageAt: now, updatedAt: now });
-      committed = true;
+      if (!request || request.status !== "running" || !(await db.chats.get(request.chatId)))
+        throw new DOMException("Request no longer running", "AbortError");
+      await persistResult(request, input.images, input.rawMetadata);
+      input.signal.throwIfAborted();
     });
-    return committed;
   },
 
-  async completeImageGenerationFailure(input: { requestId: string; error: string }): Promise<void> {
-    const request = await db.generationRequests.get(input.requestId);
-    if (request?.status !== "cancelled") await db.generationRequests.update(input.requestId, { status: "failed", error: input.error, updatedAt: nowIso() });
+  async finishUnsuccessfulGeneration(requestId: string, status: "failed" | "cancelled", error?: string): Promise<void> {
+    await db.transaction("rw", db.generationRequests, async () => {
+      const request = await db.generationRequests.get(requestId);
+      if (request?.status !== "pending" && request?.status !== "running") return;
+      await db.generationRequests.update(requestId, { status, error, updatedAt: nowIso() });
+    });
   },
 
   async listResultsByChat(chatId: string): Promise<GenerationResultEntity[]> {
@@ -107,5 +67,26 @@ export const generationRepository = {
 
   async listRequestsByChat(chatId: string): Promise<GenerationRequestEntity[]> {
     return db.generationRequests.where("chatId").equals(chatId).sortBy("createdAt");
-  }
+  },
 };
+
+async function persistResult(
+  request: GenerationRequestEntity,
+  images: Array<{ blob: Blob; mimeType?: string }>,
+  rawMetadata?: Record<string, JsonValue>,
+) {
+  const now = nowIso();
+  const messageId = createId("msg");
+  const resultId = createId("res");
+  const imageIds = images.map(() => createId("img"));
+  const { chatId, modelId, prompt, type } = request;
+  await db.messages.add({ id: messageId, chatId, role: "user", content: prompt, requestId: request.id, createdAt: now, updatedAt: now });
+  await db.generationRequests.update(request.id, { messageId, status: "succeeded", updatedAt: now });
+  await db.generationResults.add({ id: resultId, requestId: request.id, chatId, messageId, type, imageIds, rawMetadata, createdAt: now, updatedAt: now });
+  await db.images.bulkAdd(images.map((image, index) => ({
+    id: imageIds[index], chatId, messageId, requestId: request.id, resultId,
+    blob: image.blob, mimeType: image.mimeType, sizeBytes: image.blob.size,
+    prompt, modelId, parameters: request.parameters, createdAt: now, updatedAt: now,
+  })));
+  await db.chats.update(chatId, { lastMessageAt: now, updatedAt: now });
+}

@@ -37,8 +37,10 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - The GUI provides inputs for provider settings.
 - The GUI provides inputs for API URL, API key, and active/inactive status per fixed provider.
 - The GUI does not provide inputs for model names, model types, default parameters, or model capabilities.
-- The GUI provides an activation checkbox for each static model; every model is activated by default.
-- Static model definitions in the implementation provide model names, types, provider mapping, default parameters, reference-image capability, and image-input capability for text or chat-completion models.
+- Each selectable static model has one activation checkbox; all its supported routes are enabled together. New models are active by default.
+- A static image model defines its provider and at least one create or edit route, including model identifier and default parameters.
+- An edit route enables reference images. An image model without a create route requires reference images.
+- Text models retain their image-input capability.
 
 ### Local configuration persistence
 
@@ -60,6 +62,7 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - Models whose provider is inactive or missing URL or credential values are not offered for generation.
 - Individually deactivated models are not offered for generation.
 - Model names and capabilities are read from static model definitions, not from local storage.
+- Activation of an image model controls both declared routes.
 
 ### Require image and image-capable text model configuration
 
@@ -74,7 +77,7 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - Image-capable text or chat-completion models analyze the first successfully generated image for automatic chat naming.
 - Text or chat-completion models without image-input capability do not satisfy the minimum model configuration.
 - Incomplete or inactive models are not counted toward the minimum usable model configuration.
-- At least one activated image or image-edit model and one activated image-capable text model must remain active across all providers.
+- At least one image model and one image-capable text model must remain active across all providers.
 - A provider cannot be deactivated when it would remove the last required activated image or image-capable text model.
 
 ### Provide one image-capable text model per provider
@@ -102,6 +105,7 @@ This requirement defines the MVP scope for a frontend-only application with loca
 - The options area includes an API key per provider.
 - The options area includes the active/inactive status per provider.
 - The options area shows all static models per provider as a name-sorted checkbox list.
+- A model with create and edit routes appears once in the provider's model list.
 - Changes to provider configuration, model activation, default image model, theme, and language are persisted immediately without a save action.
 - The options area includes the theme switch for dark and light mode.
 - The options area includes a language selection for German and English.
@@ -114,10 +118,10 @@ This requirement defines the MVP scope for a frontend-only application with loca
 **Description:** Users can set a global default image model in the options area.  
 **Acceptance Criteria:**
 
-- The default is `OpenRouter: Grok Imagine Edit`.
+- The default is `OpenRouter: Grok Imagine`, with create and edit routes.
 - New chats preselect the default model.
 - If the default model is not usable, the first usable image model is selected.
-- Image-derived chats restore the model ID of the selected image's historical generation request instead of the global default.
+- Image-derived chats select the model corresponding to the image's historical model ID, not the global default. The historical request retains its original model ID.
 
 ### Show static model pricing
 
@@ -126,10 +130,12 @@ This requirement defines the MVP scope for a frontend-only application with loca
 **Acceptance Criteria:**
 
 - Each priced model shows its pricing reference on a second line below its name and estimated duration.
+- A model shows one pricing reference. Different create/edit prices or reference surcharges are distinguished in that reference.
 - The pricing reference includes the billing unit, for example per image, megapixel, or one million tokens.
-- Pricing references are stored in one static, centrally maintainable file together with an official source URL and the date on which the price was checked.
+- Pricing references are stored in one static file with an official source URL for each priced route or surcharge and the price-check date.
 - Price variants reflect the effective default quality, resolution, and other pricing-relevant parameters sent by the provider adapter.
 - A range or starting price is shown when aspect ratio, input images, or other variable request parameters prevent an exact price.
+- Per-reference surcharges require an official source. Megapixel and token charges retain their billing units.
 - Pricing references are available in German and English and change with the selected application language.
 - A missing price entry does not make a model unusable and does not render an empty pricing line.
 - The application does not fetch provider pricing pages at runtime.
@@ -154,8 +160,24 @@ This requirement defines the MVP scope for a frontend-only application with loca
 
 - A built-in provider adapter can be reused by multiple static model classes when the API contract is compatible.
 - Users select from active static models in the model dropdown.
-- Adding a new provider model variant requires adding a static model implementation.
+- New selectable models require a static definition. A new route of an existing model does not create another dropdown entry.
 - Local provider configuration and persisted model activation preferences remain the source of truth for whether a provider's static models are usable.
+- Existing default and chat model selections map to the combined model. Historical image and request model IDs remain unchanged.
+- On migration, the combined model is disabled only when both former variants were disabled. Otherwise, both supported routes are enabled.
+
+### Route image generation by reference availability
+
+**Type:** Functional
+
+**Description:** Image models route requests according to the presence of reference images.
+**Acceptance Criteria:**
+
+- A model supports `Create only`, `Edit only`, or both. Both routes may use the same or different provider model identifiers.
+- Requests without references use the create route; requests with references use the edit route.
+- `Create only` hides reference controls and the unsupported-reference notice. Saved references are neither deleted nor sent.
+- `Edit only` remains selectable without references. Submission without references shows the existing required-reference error before the provider request.
+- The model dropdown shows localized `(Create only)` or `(Edit only)` suffixes for single-route models. Dual-route models have no suffix.
+- New generation requests record the effective route.
 
 ### Execute direct generation requests in the MVP
 

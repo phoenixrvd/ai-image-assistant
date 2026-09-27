@@ -1,6 +1,9 @@
-import type { JsonValue, ModelType, ProviderConfigEntity } from "../../../db/entities";
-import type { StoredReference } from "../../../app/appHelpers";
-import type { StaticModel } from "../models/types";
+import type {
+  JsonValue,
+  ModelType,
+  ProviderConfigEntity,
+} from "../../../db/entities";
+import type { SelectedImageRoute, TextModel } from "../models/types";
 
 export interface ImageGenerationInput {
   prompt: string;
@@ -8,7 +11,6 @@ export interface ImageGenerationInput {
   imageCount: number;
   aspectRatio: string;
   references?: string[];
-  referenceSnapshots?: StoredReference[];
   parameters?: Record<string, JsonValue>;
 }
 
@@ -34,6 +36,15 @@ export interface ProviderAdapter {
   id: string;
   label: string;
   supportsModelType(type: ModelType): boolean;
-  generateImage(model: StaticModel, providerConfig: ProviderConfigEntity, input: ImageGenerationInput, signal?: AbortSignal): Promise<NormalizedGenerationOutput>;
-  generateText(model: StaticModel, providerConfig: ProviderConfigEntity, input: TextGenerationInput): Promise<string>;
+  generateImage(
+    route: SelectedImageRoute,
+    providerConfig: ProviderConfigEntity,
+    input: ImageGenerationInput,
+    signal?: AbortSignal,
+  ): Promise<NormalizedGenerationOutput>;
+  generateText(
+    model: TextModel,
+    providerConfig: ProviderConfigEntity,
+    input: TextGenerationInput,
+  ): Promise<string>;
 }

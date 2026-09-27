@@ -69,7 +69,9 @@ This requirement defines the intended product scope for a focused AI image gener
 
 ### Exclude edit mode for the current scope
 **Type:** Constraint  
-**Description:** The current product scope must not include an edit mode. Image work is limited to creating images with references.  
+**Description:** Image generation has no separate user-facing edit mode.
 **Acceptance Criteria:**
-- The documented scope excludes image edit mode.
-- The documented image workflow allows creating images with references.
+- The UI has no create/edit mode switch.
+- A model has one selectable entry, regardless of its supported routes.
+- Reference images can be used when the selected model supports them.
+- An `Edit only` model requires a reference image.

@@ -8,14 +8,33 @@ export interface ProviderDefinition {
   defaultBaseUrl: string;
 }
 
-export interface StaticModel {
+interface ModelBase {
   id: string;
   providerId: ProviderId;
   name: string;
   type: ModelType;
+}
+
+export interface ModelRoute {
   providerModelName: string;
-  supportsReferenceImages: boolean;
+  defaultParameters?: Record<string, JsonValue>;
+  maxImagesPerRequest?: number;
+}
+
+export type SelectedImageRoute = ModelRoute & { kind: "create" | "edit" };
+
+export interface TextModel extends ModelBase {
+  type: "text";
+  providerModelName: string;
   supportsImageInput?: boolean;
-  requiresReferenceImages?: boolean;
   defaultParameters?: Record<string, JsonValue>;
 }
+
+export interface ImageModel extends ModelBase {
+  type: "image" | "image-edit";
+  routes:
+    | { create: ModelRoute; edit?: ModelRoute }
+    | { create?: ModelRoute; edit: ModelRoute };
+}
+
+export type StaticModel = TextModel | ImageModel;

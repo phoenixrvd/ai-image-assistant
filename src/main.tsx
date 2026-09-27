@@ -6,12 +6,14 @@ import { registerSW } from "virtual:pwa-register";
 import { App } from "./app/App";
 import { queryClient } from "./app/queryClient";
 import { initializeI18n } from "./i18n/i18n";
+import { initializeProviderConfigs } from "./db/repositories/providerConfigRepository";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
 
 let reloadingForServiceWorker = false;
 let updateServiceWorker: ReturnType<typeof registerSW> | undefined;
 
+await initializeProviderConfigs();
 await initializeI18n();
 
 updateServiceWorker = registerSW({

@@ -1,14 +1,14 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Camera, Image as ImageIcon, Upload } from "lucide-react";
-import type { ChatEntity, ImageEntity } from "../../db/entities";
+import type { ImageEntity } from "../../../db/entities";
 import {
-  getModelLabel,
+  getSelectableModelLabel,
   modelRequiresReferenceImages,
   modelSupportsReferenceImages,
-} from "../../features/generation/models/registry";
-import type { StaticModel } from "../../features/generation/models/types";
-import type { UploadedReference } from "../appHelpers";
+} from "../../generation/models/registry";
+import type { StaticModel } from "../../generation/models/types";
+import type { UploadedReference } from "../../generation/types";
 
 const aspectRatios = [
   { id: "square", label: "1:1" },
@@ -19,7 +19,8 @@ const aspectRatios = [
 export function ConfigPanel(props: {
   open: boolean;
   activeChatId?: string;
-  activeChat?: ChatEntity;
+  title: string;
+  imageInstructions: string;
   activeModel?: StaticModel;
   imageModels: StaticModel[];
   imageCount: number;
@@ -37,22 +38,8 @@ export function ConfigPanel(props: {
   onSaveImageInstructions: (instructions: string) => void;
 }) {
   const { t } = useTranslation();
-  const storedImageInstructions = readImageInstructions(props.activeChat);
-  const [title, setTitle] = useState(props.activeChat?.title ?? "");
-  const [imageInstructions, setImageInstructions] = useState(
-    storedImageInstructions,
-  );
   const referencesEnabled = modelSupportsReferenceImages(props.activeModel);
   const referencesRequired = modelRequiresReferenceImages(props.activeModel);
-
-  useEffect(
-    () => setTitle(props.activeChat?.title ?? ""),
-    [props.activeChat?.title],
-  );
-  useEffect(
-    () => setImageInstructions(storedImageInstructions),
-    [props.activeChat?.id, storedImageInstructions],
-  );
 
   return (
     <aside className={`config-panel ${props.open ? "open" : ""}`}>
@@ -61,13 +48,12 @@ export function ConfigPanel(props: {
           <input
             className="form-control"
             id="chat-title"
-            value={title}
+            value={props.title}
             placeholder={t("config.chatName")}
             disabled={!props.activeChatId}
             onChange={(event) => {
               const nextTitle = event.target.value;
-              setTitle(nextTitle);
-              if (nextTitle.trim()) props.onRenameChat(nextTitle.trim());
+              props.onRenameChat(nextTitle);
             }}
           />
           <label htmlFor="chat-title">{t("config.chatName")}</label>
@@ -78,28 +64,28 @@ export function ConfigPanel(props: {
           <textarea
             className="form-control"
             id="image-instructions"
-            value={imageInstructions}
+            value={props.imageInstructions}
             disabled={!props.activeChatId}
             rows={5}
             placeholder={t("config.stylePlaceholder")}
             onChange={(event) => {
               const nextInstructions = event.target.value;
-              setImageInstructions(nextInstructions);
               props.onSaveImageInstructions(nextInstructions);
             }}
           />
           <label htmlFor="image-instructions">{t("config.styleRules")}</label>
         </div>
       </div>
-      <PromptOptions
-        pinnedImages={props.pinnedImages}
-        referencesEnabled={referencesEnabled}
-        referencesRequired={referencesRequired}
-        uploadedReferences={props.uploadedReferences}
-        onRemovePinnedReference={props.onRemovePinnedReference}
-        onUploadReferences={props.onUploadReferences}
-        onRemoveUploadedReference={props.onRemoveUploadedReference}
-      />
+      {referencesEnabled && (
+        <PromptOptions
+          pinnedImages={props.pinnedImages}
+          referencesRequired={referencesRequired}
+          uploadedReferences={props.uploadedReferences}
+          onRemovePinnedReference={props.onRemovePinnedReference}
+          onUploadReferences={props.onUploadReferences}
+          onRemoveUploadedReference={props.onRemoveUploadedReference}
+        />
+      )}
       <div className="panel-section">
         <div className="form-floating">
           <select
@@ -114,7 +100,10 @@ export function ConfigPanel(props: {
             ) : null}
             {props.imageModels.map((model) => (
               <option key={model.id} value={model.id}>
-                {getModelLabel(model)}
+                {getSelectableModelLabel(model, {
+                  createOnly: t("config.createOnly"),
+                  editOnly: t("config.editOnly"),
+                })}
               </option>
             ))}
           </select>
@@ -169,14 +158,9 @@ export function ConfigPanel(props: {
   );
 }
 
-function readImageInstructions(chat?: ChatEntity): string {
-  const value = chat?.metadata?.imageInstructions;
-  return typeof value === "string" ? value : "";
-}
 
 function PromptOptions(props: {
   pinnedImages: ImageEntity[];
-  referencesEnabled: boolean;
   referencesRequired: boolean;
   uploadedReferences: UploadedReference[];
   onRemovePinnedReference: (imageId: string) => void;
@@ -185,7 +169,6 @@ function PromptOptions(props: {
 }) {
   const { t } = useTranslation();
   const canUpload =
-    props.referencesEnabled &&
     props.pinnedImages.length + props.uploadedReferences.length < 3;
   const referenceCount =
     props.pinnedImages.length + props.uploadedReferences.length;
@@ -211,17 +194,10 @@ function PromptOptions(props: {
   };
   return (
     <div className="prompt-options">
-      <div
-        className={
-          props.referencesEnabled
-            ? "reference-strip"
-            : "reference-strip unsupported"
-        }
-      >
+      <div className="reference-strip">
         {props.pinnedImages.map((image) => (
           <ReferenceThumb
             key={image.id}
-            active={props.referencesEnabled}
             blob={image.blob}
             onClick={() => {
               if (window.confirm(t("config.removePinned")))
@@ -232,7 +208,6 @@ function PromptOptions(props: {
         {props.uploadedReferences.map((entry) => (
           <ReferenceThumb
             key={entry.id}
-            active={props.referencesEnabled}
             dataUrl={entry.dataUrl}
             onClick={() => {
               if (window.confirm(t("config.removeUploaded")))
@@ -289,20 +264,14 @@ function PromptOptions(props: {
           </label>
         </div>
       </div>
-      {!props.referencesEnabled && (
-        <small className="reference-warning">{t("config.unsupported")}</small>
+      {props.referencesRequired && referenceCount === 0 && (
+        <small className="reference-warning">{t("config.required")}</small>
       )}
-      {props.referencesEnabled &&
-        props.referencesRequired &&
-        referenceCount === 0 && (
-          <small className="reference-warning">{t("config.required")}</small>
-        )}
     </div>
   );
 }
 
 function ReferenceThumb(props: {
-  active: boolean;
   onClick: () => void;
   blob?: Blob;
   dataUrl?: string;
@@ -327,9 +296,9 @@ function ReferenceThumb(props: {
   return (
     <button
       type="button"
-      className={props.active ? "reference-thumb active" : "reference-thumb"}
+      className="reference-thumb active"
       onClick={props.onClick}
-      aria-pressed={props.active}
+      aria-pressed={true}
     >
       {url ? (
         <img src={url} alt={t("config.referenceImage")} />

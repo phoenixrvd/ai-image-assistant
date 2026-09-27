@@ -1,6 +1,7 @@
 export type GenerationPhase =
   "preparing" | "running" | "cancelling" | "succeeded" | "failed";
 import i18n from "../../../i18n/i18n";
+import { sanitizeProviderError } from "../providers/sanitize";
 
 export type GenerationJob = {
   chatId: string;
@@ -39,16 +40,16 @@ export const generationCoordinator = {
       controller,
       promise: Promise.resolve("failed"),
     };
-    active.promise = runGeneration(active, run);
     jobs.set(chatId, active);
+    active.promise = Promise.resolve().then(() => runGeneration(active, run));
     notify();
     return active.promise;
   },
 
   cancel(chatId: string): void {
     const active = jobs.get(chatId);
-    if (!active || active.job.phase === "cancelling") return;
-    active.job.phase = "cancelling";
+    if (!active || (active.job.phase !== "preparing" && active.job.phase !== "running")) return;
+    active.job = { ...active.job, phase: "cancelling" };
     active.controller.abort();
     notify();
   },
@@ -103,30 +104,24 @@ async function runGeneration(
       signal: active.controller.signal,
       setRunning: (estimatedSeconds) => {
         if (active.controller.signal.aborted) return;
-        active.job.phase = "running";
-        active.job.startedAt = Date.now();
-        active.job.estimatedSeconds = Math.max(estimatedSeconds, 1);
+        active.job = { ...active.job, phase: "running", startedAt: Date.now(), estimatedSeconds: Math.max(estimatedSeconds, 1) };
         notify();
       },
     });
-    active.job.phase = "succeeded";
+    active.job = { ...active.job, phase: "succeeded" };
     notify();
     return "succeeded";
   } catch (error) {
     if (active.controller.signal.aborted || isAbortError(error)) {
-      active.job.phase = "cancelling";
+      active.job = { ...active.job, phase: "cancelling" };
       notify();
       return "cancelled";
     }
-    active.job.phase = "failed";
-    active.job.error =
-      error instanceof Error
-        ? error.message
-        : i18n.t("errors.generationFailed");
+    active.job = { ...active.job, phase: "failed", error: sanitizeProviderError(error) };
     notify();
     return "failed";
   } finally {
-    window.setTimeout(
+    globalThis.setTimeout(
       () => {
         if (jobs.get(active.job.chatId) === active) {
           jobs.delete(active.job.chatId);

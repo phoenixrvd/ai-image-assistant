@@ -10,7 +10,7 @@ import type {
   ProviderConfigEntity,
 } from "./entities";
 
-export const DB_SCHEMA_VERSION = 11;
+export const DB_SCHEMA_VERSION = 13;
 
 type LegacyModelConfigEntity = {
   id: string;
@@ -89,13 +89,28 @@ class AiImageDatabase extends Dexie {
         await migrateStoredModelIds(transaction.table("generationRequests"));
         await seedDefaultProviderConfigs(transaction.table("providerConfigs"));
       });
-    this.version(DB_SCHEMA_VERSION)
+    this.version(11)
       .stores(PROVIDER_CONFIG_STORE)
       .upgrade(async (transaction) => {
         await migrateRemovedXaiIntegration(
           transaction.table("providerConfigs"),
           transaction.table("appOptions"),
         );
+      });
+    this.version(12)
+      .stores(PROVIDER_CONFIG_STORE)
+      .upgrade(async (transaction) => {
+        await migrateCombinedImageModels(
+          transaction.table("appOptions"),
+          transaction.table("chats"),
+        );
+      });
+    this.version(DB_SCHEMA_VERSION)
+      .stores(PROVIDER_CONFIG_STORE)
+      .upgrade(async (transaction) => {
+        await transaction.table("generationRequests").toCollection().modify((request) => {
+          request.snapshotVersion = 1;
+        });
       });
     this.on("populate", async (transaction) => {
       await seedDefaultProviderConfigs(transaction.table("providerConfigs"));
@@ -224,4 +239,67 @@ async function migrateRemovedXaiIntegration(
       });
     }
   }
+}
+
+const combinedImageModelIds: Record<string, string> = {
+  "fal-nano-banana-2-edit": "fal-nano-banana-2",
+  "fal-grok-imagine-edit": "fal-grok-imagine-image",
+  "openrouter-nano-banana-2-edit": "openrouter-nano-banana-2",
+  "openrouter-grok-imagine-edit": "openrouter-grok-imagine-image",
+};
+
+async function migrateCombinedImageModels(
+  appOptions: Table<AppOptionEntity, string>,
+  chats: Table<ChatEntity, string>,
+): Promise<void> {
+  const now = new Date().toISOString();
+  for (const key of ["defaultImageModelId", "activeImageModelId"]) {
+    const option = await appOptions.get(key);
+    const replacement =
+      typeof option?.value === "string"
+        ? combinedImageModelIds[option.value]
+        : undefined;
+    if (option && replacement)
+      await appOptions.put({ ...option, value: replacement, updatedAt: now });
+  }
+
+  const disabled = await appOptions.get("disabledModelIds");
+  if (disabled && Array.isArray(disabled.value)) {
+    const oldIds = disabled.value.filter(
+      (id): id is string => typeof id === "string",
+    );
+    const next = disabled.value.filter(
+      (id) => typeof id !== "string" || !(id in combinedImageModelIds),
+    );
+    for (const [oldId, currentId] of Object.entries(combinedImageModelIds)) {
+      if (oldIds.includes(oldId) && oldIds.includes(currentId))
+        next.push(currentId);
+      else {
+        const position = next.indexOf(currentId);
+        if (position !== -1) next.splice(position, 1);
+      }
+    }
+    if (JSON.stringify(next) !== JSON.stringify(disabled.value)) {
+      await appOptions.put({
+        ...disabled,
+        value: next,
+        updatedAt: now,
+      });
+    }
+  }
+
+  await chats.toCollection().modify((chat) => {
+    const settings = chat.metadata?.chatSettings;
+    if (!settings || typeof settings !== "object" || Array.isArray(settings))
+      return;
+    const oldId = settings.activeImageModelId;
+    const replacement =
+      typeof oldId === "string" ? combinedImageModelIds[oldId] : undefined;
+    if (replacement) {
+      chat.metadata = {
+        ...chat.metadata,
+        chatSettings: { ...settings, activeImageModelId: replacement },
+      };
+    }
+  });
 }

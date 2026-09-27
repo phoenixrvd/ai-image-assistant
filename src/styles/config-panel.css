@@ -7,7 +7,11 @@
   gap: 1rem;
   width: min(100vw, 360px);
   padding: 0.75rem;
-  background: color-mix(in srgb, var(--bs-tertiary-bg) 92%, var(--bs-primary) 8%);
+  background: color-mix(
+    in srgb,
+    var(--bs-tertiary-bg) 92%,
+    var(--bs-primary) 8%
+  );
   border-left: var(--bs-border-width) solid var(--bs-border-color);
   box-shadow: var(--bs-box-shadow-lg);
   transform: translateX(104%);
@@ -34,12 +38,6 @@
   padding: 0.35rem;
   border: 1px solid transparent;
   border-radius: var(--bs-border-radius-lg);
-}
-
-.reference-strip.unsupported {
-  border-color: var(--bs-danger);
-  border-style: dashed;
-  background: rgba(var(--bs-danger-rgb), 0.06);
 }
 
 .reference-warning {

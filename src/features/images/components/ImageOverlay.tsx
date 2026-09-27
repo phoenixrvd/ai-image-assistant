@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { ImageEntity } from "../../db/entities";
+import type { ImageEntity } from "../../../db/entities";
 
 const swipeThreshold = 45;
 const maxZoomScale = 4;

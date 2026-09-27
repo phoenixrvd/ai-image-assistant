@@ -1,7 +1,7 @@
 import { ArrowLeft, Menu, MessageCircle, Settings, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { ChatEntity } from "../../db/entities";
-import { formatMessageDate } from "../appHelpers";
+import type { ChatEntity } from "../../../db/entities";
+import { formatMessageDate } from "../../../i18n/formatMessageDate";
 
 export function ChatNavigation(props: {
   chats: ChatEntity[];

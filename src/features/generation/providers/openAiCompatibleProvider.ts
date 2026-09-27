@@ -3,15 +3,18 @@ import type {
   ModelType,
   ProviderConfigEntity,
 } from "../../../db/entities";
-import type { StaticModel } from "../models/types";
+import type { SelectedImageRoute, TextModel } from "../models/types";
 import type {
   ImageGenerationInput,
   NormalizedGenerationOutput,
   ProviderAdapter,
   TextGenerationInput,
 } from "./types";
-import { responseToSafeError } from "./sanitize";
+import { fetchProvider, responseToSafeError } from "./sanitize";
 import i18n from "../../../i18n/i18n";
+import { base64ToBlob, dataUrlToBlob } from "../../images/imageEncoding";
+import { requestChatCompletion } from "./chatCompletion";
+import { buildImagePrompt } from "./imagePrompt";
 
 interface ProviderImageItem {
   b64_json?: string;
@@ -24,10 +27,6 @@ interface ProviderImageResponse {
   created?: number;
 }
 
-interface ProviderChatResponse {
-  choices?: Array<{ message?: { content?: string } }>;
-}
-
 export class OpenAiCompatibleProvider implements ProviderAdapter {
   id = "openai";
   label = "OpenAI";
@@ -37,16 +36,16 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
   }
 
   async generateImage(
-    model: StaticModel,
+    route: SelectedImageRoute,
     providerConfig: ProviderConfigEntity,
     input: ImageGenerationInput,
     signal?: AbortSignal,
   ): Promise<NormalizedGenerationOutput> {
-    if (input.references?.length) {
-      return this.generateImageEdit(model, providerConfig, input, signal);
+    if (route.kind === "edit") {
+      return this.generateImageEdit(route, providerConfig, input, signal);
     }
 
-    const response = await fetch(
+    const response = await fetchProvider(
       `${providerConfig.baseUrl.replace(/\/$/, "")}/images/generations`,
       {
         method: "POST",
@@ -54,7 +53,7 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
           Authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(this.buildBody(model, input)),
+        body: JSON.stringify(this.buildBody(route, input)),
         signal,
       },
     );
@@ -68,17 +67,17 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
   }
 
   protected async generateImageEdit(
-    model: StaticModel,
+    route: SelectedImageRoute,
     providerConfig: ProviderConfigEntity,
     input: ImageGenerationInput,
     signal?: AbortSignal,
   ): Promise<NormalizedGenerationOutput> {
     const body = new FormData();
-    body.append("model", model.providerModelName);
+    body.append("model", route.providerModelName);
     body.append("prompt", buildImagePrompt(input));
     body.append("n", String(input.imageCount));
     body.append("size", mapAspectRatioToSize(input.aspectRatio));
-    appendFormParameters(body, model.defaultParameters ?? {});
+    appendFormParameters(body, route.defaultParameters ?? {});
     appendFormParameters(body, input.parameters ?? {});
 
     for (const [index, reference] of (input.references ?? []).entries()) {
@@ -90,7 +89,7 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
       );
     }
 
-    const response = await fetch(
+    const response = await fetchProvider(
       `${providerConfig.baseUrl.replace(/\/$/, "")}/images/edits`,
       {
         method: "POST",
@@ -111,15 +110,15 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
   }
 
   protected buildBody(
-    model: StaticModel,
+    route: SelectedImageRoute,
     input: ImageGenerationInput,
   ): Record<string, JsonValue> {
     return {
-      model: model.providerModelName,
+      model: route.providerModelName,
       prompt: buildImagePrompt(input),
       n: input.imageCount,
       size: mapAspectRatioToSize(input.aspectRatio),
-      ...(model.defaultParameters ?? {}),
+      ...(route.defaultParameters ?? {}),
       ...(input.parameters ?? {}),
     };
   }
@@ -135,86 +134,15 @@ export class OpenAiCompatibleProvider implements ProviderAdapter {
   }
 
   async generateText(
-    model: StaticModel,
+    model: TextModel,
     providerConfig: ProviderConfigEntity,
     input: TextGenerationInput,
   ): Promise<string> {
-    const userContent = input.image
-      ? [
-          { type: "text", text: input.prompt },
-          {
-            type: "image_url",
-            image_url: {
-              url: await blobToDataUrl(input.image.blob),
-              detail: "low",
-            },
-          },
-        ]
-      : input.prompt;
-    const response = await fetch(
-      this.buildChatCompletionsUrl(providerConfig),
-      {
-        method: "POST",
-        headers: {
-          Authorization: this.buildTextAuthorization(providerConfig),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: model.providerModelName,
-          messages: [
-            { role: "system", content: input.system },
-            { role: "user", content: userContent },
-          ],
-          temperature: 0.2,
-          ...(model.defaultParameters ?? {}),
-          ...(input.parameters ?? {}),
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(await responseToSafeError(response));
-    }
-
-    const payload = (await response.json()) as ProviderChatResponse;
-    const text = payload.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error(i18n.t("errors.providerNoText"));
-    return text;
+    return requestChatCompletion(model, {
+      url: `${providerConfig.baseUrl.replace(/\/+$/, "")}/chat/completions`,
+      authorization: `Bearer ${providerConfig.apiKey ?? ""}`,
+    }, input);
   }
-
-  protected buildChatCompletionsUrl(
-    providerConfig: ProviderConfigEntity,
-  ): string {
-    return `${providerConfig.baseUrl.replace(/\/$/, "")}/chat/completions`;
-  }
-
-  protected buildTextAuthorization(
-    providerConfig: ProviderConfigEntity,
-  ): string {
-    return `Bearer ${providerConfig.apiKey ?? ""}`;
-  }
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () =>
-      typeof reader.result === "string"
-        ? resolve(reader.result)
-        : reject(new Error(i18n.t("errors.fileRead"))),
-    );
-    reader.addEventListener("error", () =>
-      reject(reader.error ?? new Error(i18n.t("errors.fileRead"))),
-    );
-    reader.readAsDataURL(blob);
-  });
-}
-
-export function buildImagePrompt(input: ImageGenerationInput): string {
-  const instructions = input.instructions?.trim();
-  const prompt = input.prompt.trim();
-  if (!instructions) return prompt;
-  return `${i18n.t("config.styleRules")}:\n${instructions}\n\nPrompt:\n${prompt}`;
 }
 
 async function imageItemToBlob(item: ProviderImageItem, signal?: AbortSignal) {
@@ -225,29 +153,12 @@ async function imageItemToBlob(item: ProviderImageItem, signal?: AbortSignal) {
     };
   }
   if (item.url) {
-    const response = await fetch(item.url, { signal });
+    const response = await fetchProvider(item.url, { signal });
+    if (!response.ok) throw new Error(await responseToSafeError(response));
     const blob = await response.blob();
     return { blob, mimeType: blob.type || "image/png" };
   }
   throw new Error(i18n.t("errors.providerNoImage"));
-}
-
-function base64ToBlob(base64: string, mimeType: string): Blob {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new Blob([bytes], { type: mimeType });
-}
-
-function dataUrlToBlob(dataUrl: string): Blob {
-  const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(dataUrl);
-  if (!match) return new Blob([dataUrl], { type: "text/plain" });
-  const mimeType = match[1] || "image/png";
-  const data = match[3];
-  if (match[2]) return base64ToBlob(data, mimeType);
-  return new Blob([decodeURIComponent(data)], { type: mimeType });
 }
 
 function appendFormParameters(

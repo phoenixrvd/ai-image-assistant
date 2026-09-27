@@ -1,12 +1,12 @@
 {
   "openai-image-1-5": {
     "label": {
-      "de": "$0,009–0,013/Bild (low)",
-      "en": "$0.009–0.013/image (low)"
+      "de": "$0,009–0,013/Bild (low) · Bildeingabe $8/1M Tokens",
+      "en": "$0.009–0.013/image (low) · image input $8/1M tokens"
     },
-    "basis": "quality=low; size=1024x1024|1024x1536|1536x1024",
+    "basis": "quality=low; size=1024x1024|1024x1536|1536x1024; edit image input billed by tokens",
     "sourceUrl": "https://developers.openai.com/api/docs/models/gpt-image-1.5",
-    "checkedAt": "2026-07-28"
+    "checkedAt": "2026-09-27"
   },
   "openai-gpt-4o-mini": {
     "label": {
@@ -31,7 +31,7 @@
     },
     "basis": "fixed price per generated image",
     "sourceUrl": "https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/edit",
-    "checkedAt": "2026-07-28"
+    "checkedAt": "2026-09-27"
   },
   "fal-flux-2-flex": {
     "label": {
@@ -40,7 +40,7 @@
     },
     "basis": "input and output megapixels, each rounded up",
     "sourceUrl": "https://fal.ai/models/fal-ai/flux-2-flex/edit",
-    "checkedAt": "2026-07-28"
+    "checkedAt": "2026-09-27"
   },
   "fal-flux-2-klein-9b-edit": {
     "label": {
@@ -49,7 +49,7 @@
     },
     "basis": "input and output megapixels; input resized to 1 MP",
     "sourceUrl": "https://fal.ai/models/fal-ai/flux-2/klein/9b/edit",
-    "checkedAt": "2026-07-28"
+    "checkedAt": "2026-09-27"
   },
   "fal-nano-banana-lite-edit": {
     "label": {
@@ -58,7 +58,7 @@
     },
     "basis": "image input and output tokens; fixed 1K output",
     "sourceUrl": "https://fal.ai/models/google/nano-banana-lite/edit",
-    "checkedAt": "2026-07-28"
+    "checkedAt": "2026-09-27"
   },
   "fal-nano-banana": {
     "label": {
@@ -67,7 +67,7 @@
     },
     "basis": "fixed price per generated image",
     "sourceUrl": "https://fal.ai/models/fal-ai/nano-banana",
-    "checkedAt": "2026-07-28"
+    "checkedAt": "2026-09-27"
   },
   "fal-nano-banana-2": {
     "label": {
@@ -76,34 +76,18 @@
     },
     "basis": "resolution=0.5K; 0.75 times the 1K price",
     "sourceUrl": "https://fal.ai/models/fal-ai/nano-banana-2",
-    "checkedAt": "2026-07-28"
-  },
-  "fal-nano-banana-2-edit": {
-    "label": {
-      "de": "$0,06/Bild (0,5K)",
-      "en": "$0.06/image (0.5K)"
-    },
-    "basis": "resolution=0.5K; 0.75 times the 1K price",
-    "sourceUrl": "https://fal.ai/models/fal-ai/nano-banana-2/edit",
-    "checkedAt": "2026-07-28"
+    "editSourceUrl": "https://fal.ai/models/fal-ai/nano-banana-2/edit",
+    "checkedAt": "2026-09-27"
   },
   "fal-grok-imagine-image": {
     "label": {
-      "de": "$0,02/Bild",
-      "en": "$0.02/image"
+      "de": "ohne Referenz $0,02/Bild · mit Referenz ab $0,022/Bild",
+      "en": "no reference $0.02/image · with reference from $0.022/image"
     },
-    "basis": "resolution=1k; output image only",
+    "basis": "resolution=1k; create $0.02 output; edit $0.02 output + $0.002 image input for one reference; up to 3 references",
     "sourceUrl": "https://fal.ai/models/xai/grok-imagine-image",
-    "checkedAt": "2026-07-28"
-  },
-  "fal-grok-imagine-edit": {
-    "label": {
-      "de": "$0,022/Bild",
-      "en": "$0.022/image"
-    },
-    "basis": "resolution=1k; one image input and one image output",
-    "sourceUrl": "https://fal.ai/models/xai/grok-imagine-image/edit",
-    "checkedAt": "2026-07-28"
+    "editSourceUrl": "https://fal.ai/models/xai/grok-imagine-image/edit",
+    "checkedAt": "2026-09-27"
   },
   "fal-openai-gpt-image-2-edit": {
     "label": {
@@ -112,7 +96,7 @@
     },
     "basis": "quality=low; image_size=auto; price varies with input count and size",
     "sourceUrl": "https://fal.ai/models/openai/gpt-image-2/edit",
-    "checkedAt": "2026-07-28"
+    "checkedAt": "2026-09-27"
   },
   "openrouter-openai-gpt-4o-mini": {
     "label": {
@@ -129,7 +113,7 @@
     },
     "basis": "resolution=2K; reference images are free",
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/bytedance-seed/seedream-5-0-lite/endpoints",
-    "checkedAt": "2026-09-20"
+    "checkedAt": "2026-09-27"
   },
   "openrouter-seedream-v5-pro": {
     "label": {
@@ -138,7 +122,7 @@
     },
     "basis": "resolution=1K; price rises to $0.09 per image for high resolution",
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/bytedance-seed/seedream-5-0-pro/endpoints",
-    "checkedAt": "2026-09-20"
+    "checkedAt": "2026-09-27"
   },
   "openrouter-flux-2-flex": {
     "label": {
@@ -147,16 +131,16 @@
     },
     "basis": "input and output megapixels",
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/black-forest-labs/flux.2-flex/endpoints",
-    "checkedAt": "2026-09-20"
+    "checkedAt": "2026-09-27"
   },
   "openrouter-flux-2-klein-4b": {
     "label": {
-      "de": "$3,42/1M Ausgabebildtokens",
-      "en": "$3.42/1M output image tokens"
+      "de": "$0,014/MP Ausgabe",
+      "en": "$0.014/MP output"
     },
-    "basis": "output image tokens; $0.00000341796875 per token",
-    "sourceUrl": "https://openrouter.ai/api/v1/models/black-forest-labs/flux.2-klein-4b/endpoints",
-    "checkedAt": "2026-09-20"
+    "basis": "image endpoint; output megapixels",
+    "sourceUrl": "https://openrouter.ai/api/v1/images/models/black-forest-labs/flux.2-klein-4b/endpoints",
+    "checkedAt": "2026-09-27"
   },
   "openrouter-nano-banana-lite": {
     "label": {
@@ -165,16 +149,16 @@
     },
     "basis": "resolution=1K; output image tokens",
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/google/gemini-3.1-flash-lite-image/endpoints",
-    "checkedAt": "2026-09-20"
+    "checkedAt": "2026-09-27"
   },
   "openrouter-nano-banana": {
     "label": {
-      "de": "$30/1M Bildtokens",
-      "en": "$30/1M image tokens"
+      "de": "$15–54/1M Ausgabebildtokens (je Anbieter)",
+      "en": "$15–54/1M output image tokens (by provider)"
     },
-    "basis": "standard route; output image tokens",
+    "basis": "create only; output image tokens; OpenRouter lists multiple providers with different tariffs",
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/google/gemini-2.5-flash-image/endpoints",
-    "checkedAt": "2026-09-20"
+    "checkedAt": "2026-09-27"
   },
   "openrouter-nano-banana-2": {
     "label": {
@@ -183,16 +167,7 @@
     },
     "basis": "resolution=1K; output image tokens",
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/google/gemini-3.1-flash-image/endpoints",
-    "checkedAt": "2026-09-20"
-  },
-  "openrouter-nano-banana-2-edit": {
-    "label": {
-      "de": "$60/1M Bildtokens",
-      "en": "$60/1M image tokens"
-    },
-    "basis": "resolution=1K; output image tokens",
-    "sourceUrl": "https://openrouter.ai/api/v1/images/models/google/gemini-3.1-flash-image/endpoints",
-    "checkedAt": "2026-09-20"
+    "checkedAt": "2026-09-27"
   },
   "openrouter-grok-imagine-image": {
     "label": {
@@ -201,24 +176,15 @@
     },
     "basis": "resolution=1K; input price applies only with references",
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/x-ai/grok-imagine-image-quality/endpoints",
-    "checkedAt": "2026-09-20"
-  },
-  "openrouter-grok-imagine-edit": {
-    "label": {
-      "de": "$0,05/Bild (1K) + $0,01/Referenzbild",
-      "en": "$0.05/image (1K) + $0.01/reference image"
-    },
-    "basis": "resolution=1K; input price applies only with references",
-    "sourceUrl": "https://openrouter.ai/api/v1/images/models/x-ai/grok-imagine-image-quality/endpoints",
-    "checkedAt": "2026-09-20"
+    "checkedAt": "2026-09-27"
   },
   "openrouter-openai-gpt-image-2-edit": {
     "label": {
-      "de": "$5 In · $30 Out /1M Tokens",
-      "en": "$5 in · $30 out /1M tokens"
+      "de": "$5 Text-In · $8 Bild-In · $30 Bild-Out /1M Tokens",
+      "en": "$5 text in · $8 image in · $30 image out /1M tokens"
     },
-    "basis": "input text tokens and output image tokens; image input tokens are billed separately",
+    "basis": "quality=low; text input, image input and image output billed separately per token",
     "sourceUrl": "https://openrouter.ai/api/v1/images/models/openai/gpt-image-2/endpoints",
-    "checkedAt": "2026-09-20"
+    "checkedAt": "2026-09-27"
   }
 }

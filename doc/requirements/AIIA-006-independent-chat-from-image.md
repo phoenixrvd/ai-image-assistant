@@ -31,7 +31,9 @@ Users need to continue work from the generation settings of a selected image wit
 - The selected image is copied as the result image of the copied first message, with a new image ID, chat ID, and message ID.
 - No other messages, images, generation requests, or generation results are copied.
 - The new chat restores the selected image's historical prompt as its prompt draft.
-- The new chat restores the historical model ID, image count, aspect ratio, and localized `Stil & Regeln` / `Style & Rules` instructions label without changing the stored instructions.
+- The new chat selects the image's historical model or its combined successor, not the global default.
+- The original request keeps its model ID and recorded route.
+- The new chat restores image count, aspect ratio, and stored instructions. The instructions label is localized as `Stil & Regeln` / `Style & Rules`; the content is unchanged.
 - The new chat starts without uploaded or pinned reference images; the copied image remains a displayed message result, not a reference.
 - Changes made after creation in either chat do not affect the other chat.
 

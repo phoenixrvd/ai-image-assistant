@@ -13,6 +13,7 @@ export const resources = {
         cancel: "Abbrechen",
         save: "Speichern",
         none: "keine",
+        loading: "Laden …",
       },
       options: {
         provider: "Provider",
@@ -63,7 +64,8 @@ export const resources = {
         firstReferences: "Nur die ersten 3 Referenzen wurden übernommen.",
         removePinned: "Dieses angepinnte Referenzbild entfernen?",
         removeUploaded: "Dieses hochgeladene Referenzbild entfernen?",
-        unsupported: "Das aktive Modell unterstützt keine Referenzbilder.",
+        createOnly: "Nur Erstellen",
+        editOnly: "Nur Bearbeiten",
         required: "Mindestens ein Referenzbild auswählen.",
         referenceImage: "Referenzbild",
       },
@@ -122,6 +124,7 @@ export const resources = {
       errors: {
         unknown: "Unbekannter Fehler.",
         generationFailed: "Die Generierung ist fehlgeschlagen.",
+        invalidGenerationInput: "Bitte prüfe Prompt, Bildanzahl und Bildformat.",
         fileRead: "Datei konnte nicht gelesen werden.",
         activeModel: "Es ist kein verwendbares Bildmodell aktiv.",
         referenceRequired:
@@ -153,7 +156,7 @@ export const resources = {
         newSession: "New Session",
         options: "Options",
       },
-      common: { close: "Close", cancel: "Cancel", save: "Save", none: "none" },
+      common: { close: "Close", cancel: "Cancel", save: "Save", none: "none", loading: "Loading …" },
       options: {
         provider: "Provider",
         general: "General",
@@ -203,7 +206,8 @@ export const resources = {
         firstReferences: "Only the first 3 references were added.",
         removePinned: "Remove this pinned reference image?",
         removeUploaded: "Remove this uploaded reference image?",
-        unsupported: "The active model does not support reference images.",
+        createOnly: "Create only",
+        editOnly: "Edit only",
         required: "Select at least one reference image.",
         referenceImage: "Reference image",
       },
@@ -261,6 +265,7 @@ export const resources = {
       errors: {
         unknown: "Unknown error.",
         generationFailed: "Generation failed.",
+        invalidGenerationInput: "Please check the prompt, image count, and aspect ratio.",
         fileRead: "The file could not be read.",
         activeModel: "There is no usable image model active.",
         referenceRequired: "This model requires at least one reference image.",

@@ -1,7 +1,7 @@
 {
   "name": "ai-image-assistant",
   "private": true,
-  "version": "1.16.0",
+  "version": "1.17.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -9,6 +9,7 @@
     "build": "node scripts/write-build-env.mjs && tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
+    "test": "vitest run --config vitest.config.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -31,12 +32,16 @@
     "@babel/core": "^8.0.6",
     "@babel/plugin-transform-runtime": "^8.0.6",
     "@babel/runtime": "^8.0.5",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.1.1",
     "prettier": "^3.9.8",
     "sharp": "^0.35.4",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
   },
   "overrides": {
     "minimatch@10.2.5": {

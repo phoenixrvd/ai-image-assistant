@@ -55,6 +55,7 @@ The application is a static, frontend-only PWA and currently supports German and
 - Automatic chat titles use the language active when title generation starts.
 - Both language resources are bundled with the static application and remain available offline.
 - Missing translation keys fall back to English.
+- Model dropdown suffixes `(Create only)` and `(Edit only)` follow the application language; model names remain unchanged.
 
 ### Preserve local user content
 

@@ -35,6 +35,7 @@ This requirement defines image presentation, per-image actions, prompt variation
 
 - The existing result metadata below a generated image shows the model used for that generation next to the generation time.
 - The displayed model is resolved from the historical generation record and is not replaced when the active chat model changes.
+- New generation requests store the effective create or edit route. Existing request records remain unchanged.
 - The model metadata uses the same visual styling as the existing time metadata.
 - If a historical model is no longer available in the static model registry, its stored model ID remains visible as a fallback.
 

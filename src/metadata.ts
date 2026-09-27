@@ -1,4 +1,4 @@
-import { DB_SCHEMA_VERSION } from "../db/database";
+import { DB_SCHEMA_VERSION } from "./db/database";
 
 export const appMetadata = {
   version: import.meta.env.VITE_APP_VERSION ?? "dev",

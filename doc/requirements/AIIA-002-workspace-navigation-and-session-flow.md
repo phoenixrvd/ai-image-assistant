@@ -64,6 +64,7 @@ This requirement defines the functional UI zones and the session-oriented flow a
 
 - Per chat, the system persists and restores prompt draft, active image model, image count, aspect ratio, and style/rules instructions.
 - Per chat, the system persists and restores uploaded reference images as draft settings.
+- Switching to `Create only` preserves uploaded references; switching back to an edit-capable model shows them again.
 - Live settings from one chat are never shown in another chat.
 
 ### Keep prompt empty for regularly created chats
@@ -260,6 +261,8 @@ This requirement defines the functional UI zones and the session-oriented flow a
 **Acceptance Criteria:**
 
 - Clicking a selected reference image in the configuration zone asks for confirmation before applying changes.
+- `Create only` hides reference-image controls and previews without deleting uploads or unpinning images.
+- Switching to an edit-capable model restores the reference controls and removal interaction.
 - Confirming an uploaded reference image removes it from the selected references.
 - Confirming a pinned reference image unpins the image.
 - Unpinning a pinned reference image keeps the generated image in chat history.

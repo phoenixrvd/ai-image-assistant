@@ -3,16 +3,12 @@ import type {
   ModelType,
   ProviderConfigEntity,
 } from "../../../db/entities";
-import type { StaticModel } from "../models/types";
-import type {
-  ImageGenerationInput,
-  NormalizedGenerationOutput,
-} from "./types";
-import {
-  buildImagePrompt,
-  OpenAiCompatibleProvider,
-} from "./openAiCompatibleProvider";
-import { responseToSafeError } from "./sanitize";
+import type { SelectedImageRoute, TextModel } from "../models/types";
+import type { ImageGenerationInput, NormalizedGenerationOutput, ProviderAdapter, TextGenerationInput } from "./types";
+import { buildImagePrompt } from "./imagePrompt";
+import { requestChatCompletion } from "./chatCompletion";
+import { dataUrlToBlob } from "../../images/imageEncoding";
+import { fetchProvider, responseToSafeError } from "./sanitize";
 import i18n from "../../../i18n/i18n";
 
 interface FalAiFile {
@@ -24,7 +20,7 @@ interface FalAiImageResponse {
   seed?: number;
 }
 
-export class FalAiProvider extends OpenAiCompatibleProvider {
+export class FalAiProvider implements ProviderAdapter {
   id = "fal-ai";
   label = "fal.ai";
 
@@ -33,16 +29,14 @@ export class FalAiProvider extends OpenAiCompatibleProvider {
   }
 
   async generateImage(
-    model: StaticModel,
+    route: SelectedImageRoute,
     providerConfig: ProviderConfigEntity,
     input: ImageGenerationInput,
     signal?: AbortSignal,
   ): Promise<NormalizedGenerationOutput> {
-    const references = model.supportsReferenceImages
-      ? (input.references ?? [])
-      : [];
+    const references = route.kind === "edit" ? (input.references ?? []) : [];
     const mergedParameters = mergeParameters(
-      model.defaultParameters,
+      route.defaultParameters,
       input.parameters,
     );
     const body: Record<string, JsonValue> = {
@@ -67,7 +61,7 @@ export class FalAiProvider extends OpenAiCompatibleProvider {
     }
 
     const response = await fetchFalModelApi(
-      buildFalEndpointUrl(model, providerConfig),
+      buildFalEndpointUrl(route, providerConfig),
       {
         method: "POST",
         headers: {
@@ -91,31 +85,26 @@ export class FalAiProvider extends OpenAiCompatibleProvider {
     return { images, rawMetadata: { seed: payload.seed ?? null } };
   }
 
-  protected buildChatCompletionsUrl(
-    providerConfig: ProviderConfigEntity,
-  ): string {
+  generateText(model: TextModel, providerConfig: ProviderConfigEntity, input: TextGenerationInput): Promise<string> {
     const baseUrl = providerConfig.baseUrl.trim().replace(/\/+$/, "");
-    return `${baseUrl}/openrouter/router/openai/v1/chat/completions`;
-  }
-
-  protected buildTextAuthorization(
-    providerConfig: ProviderConfigEntity,
-  ): string {
-    return `Key ${providerConfig.apiKey ?? ""}`;
+    return requestChatCompletion(model, {
+      url: `${baseUrl}/openrouter/router/openai/v1/chat/completions`,
+      authorization: `Key ${providerConfig.apiKey ?? ""}`,
+    }, input);
   }
 }
 
 function fetchFalModelApi(url: string, init: RequestInit): Promise<Response> {
   const headers = new Headers(init.headers);
   headers.set("X-Fal-Store-IO", "0");
-  return fetch(url, { ...init, headers });
+  return fetchProvider(url, { ...init, headers });
 }
 
 function buildFalEndpointUrl(
-  model: StaticModel,
+  route: SelectedImageRoute,
   providerConfig: ProviderConfigEntity,
 ): string {
-  const modelName = model.providerModelName.trim().replace(/^\/+/, "");
+  const modelName = route.providerModelName.trim().replace(/^\/+/, "");
   if (!modelName) return "https://fal.run";
   if (modelName.startsWith("http://") || modelName.startsWith("https://"))
     return modelName;
@@ -224,25 +213,8 @@ async function falImageToBlob(entry: FalAiFile, signal?: AbortSignal) {
     return { blob, mimeType: blob.type || "image/png" };
   }
 
-  const response = await fetch(url, { signal });
+  const response = await fetchProvider(url, { signal });
+  if (!response.ok) throw new Error(await responseToSafeError(response));
   const blob = await response.blob();
   return { blob, mimeType: blob.type || "image/png" };
-}
-
-function dataUrlToBlob(dataUrl: string): Blob {
-  const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(dataUrl);
-  if (!match) return new Blob([dataUrl], { type: "text/plain" });
-  const mimeType = match[1] || "image/png";
-  const data = match[3];
-  if (match[2]) return base64ToBlob(data, mimeType);
-  return new Blob([decodeURIComponent(data)], { type: mimeType });
-}
-
-function base64ToBlob(base64: string, mimeType: string): Blob {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new Blob([bytes], { type: mimeType });
 }

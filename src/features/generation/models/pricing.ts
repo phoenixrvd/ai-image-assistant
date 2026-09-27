@@ -5,6 +5,7 @@ interface ModelPricing {
   label: Record<AppLanguage, string>;
   basis?: string;
   sourceUrl: string;
+  editSourceUrl?: string;
   checkedAt: string;
 }
 

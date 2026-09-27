@@ -1,205 +1,140 @@
 import { generationRepository } from "../../../db/repositories/generationRepository";
 import { appOptionsRepository } from "../../../db/repositories/appOptionsRepository";
+import { chatRepository } from "../../../db/repositories/chatRepository";
+import { imageRepository } from "../../../db/repositories/imageRepository";
 import { modelLoadEstimateRepository } from "../../../db/repositories/modelLoadEstimateRepository";
-import {
-  isProviderUsable,
-  providerConfigRepository,
-} from "../../../db/repositories/providerConfigRepository";
-import { getModel, isModelEnabled } from "../models/registry";
-import type { StaticModel } from "../models/types";
-import {
-  isBrowserOffline,
-  providerConnectivityError,
-  sanitizeProviderError,
-} from "../providers/sanitize";
+import { isProviderUsable, providerConfigRepository } from "../../../db/repositories/providerConfigRepository";
+import { getModel, isModelEnabled, listUsableModels, modelSupportsImageInput, selectImageRoute, selectableModelId } from "../models/registry";
+import { isBrowserOffline, providerConnectivityError, sanitizeProviderError } from "../providers/sanitize";
 import { getProviderForModel } from "../providers/registry";
-import type {
-  ImageGenerationInput,
-  NormalizedGenerationOutput,
-  NormalizedImageOutput,
-} from "../providers/types";
+import type { NormalizedImageOutput } from "../providers/types";
+import type { GenerationSubmission, StoredReference } from "../types";
+import { isValidAspectRatio, isValidImageCount } from "../../chats/types";
+import { blobToDataUrl } from "../../images/imageEncoding";
+import { normalizeImages } from "../../images/normalizeImages";
+import { generationCoordinator } from "./generationCoordinator";
+import { generateChatTitle } from "./chatTitleService";
 import i18n from "../../../i18n/i18n";
 
-export async function generateImages(
-  chatId: string,
-  modelId: string,
-  input: ImageGenerationInput,
-  signal?: AbortSignal,
-): Promise<NormalizedImageOutput> {
-  const model = getModel(modelId);
-  const disabledModelIds = await appOptionsRepository.getDisabledModelIds();
-  const providerConfig = model
-    ? await providerConfigRepository.get(model.providerId)
-    : undefined;
-  if (
-    !model ||
-    !isModelEnabled(model, disabledModelIds) ||
-    !providerConfig ||
-    !isProviderUsable(providerConfig) ||
-    !["image", "image-edit"].includes(model.type)
-  )
-    throw new Error(i18n.t("errors.activeModel"));
-  if (model.requiresReferenceImages && !input.references?.length)
-    throw new Error(i18n.t("errors.referenceRequired"));
-
-  const instructions = input.instructions?.trim();
-  const parameters = {
-    imageCount: input.imageCount,
-    aspectRatio: input.aspectRatio,
-    references: input.referenceSnapshots ?? summarizeReferences(input),
-    ...(instructions ? { imageInstructions: instructions } : {}),
-    ...(input.parameters ?? {}),
+export async function startImageGeneration(submission: GenerationSubmission) {
+  // Copy synchronously before any await; later UI changes cannot alter this run.
+  const input = { ...submission, prompt: submission.prompt.trim(), references: submission.references.slice(0, 3).map((reference) => ({ ...reference })) };
+  let completed: CompletedGeneration | undefined;
+  const outcome = await generationCoordinator.start(input.chatId, async ({ signal, setRunning }) => {
+    const resolved = await resolveSubmission(input);
+    signal.throwIfAborted();
+    completed = await executeGeneration(input, resolved, signal, setRunning);
+  });
+  return {
+    outcome,
+    aftercare: completed ? finishAftercare(input, completed) : Promise.resolve(),
   };
-  const { requestId } = await generationRepository.createPendingImageGeneration(
-    {
-      chatId,
-      modelId: model.id,
-      type: "image",
-      prompt: input.prompt,
-      parameters,
+}
+
+async function resolveSubmission(input: GenerationSubmission) {
+  const model = getModel(input.modelId);
+  const disabled = await appOptionsRepository.getDisabledModelIds();
+  const config = model ? await providerConfigRepository.get(model.providerId) : undefined;
+  if (!model || model.type === "text" || selectableModelId(input.modelId) !== input.modelId ||
+      !isModelEnabled(model, disabled) || !config || !isProviderUsable(config))
+    throw new Error(i18n.t("errors.activeModel"));
+  if (!input.prompt || !isValidImageCount(input.imageCount) || !isValidAspectRatio(input.aspectRatio))
+    throw new Error(i18n.t("errors.invalidGenerationInput"));
+  const references = model.routes.edit ? input.references : [];
+  if (!model.routes.create && !references.length) throw new Error(i18n.t("errors.referenceRequired"));
+  if (isBrowserOffline()) throw new Error(providerConnectivityError());
+  return { model, config, references, route: selectImageRoute(model, references.length > 0) };
+}
+
+type ResolvedSubmission = Awaited<ReturnType<typeof resolveSubmission>>;
+type CompletedGeneration = {
+  firstImage: NormalizedImageOutput;
+  providerId: string;
+  providerModelName: string;
+  durationSeconds: number;
+  titleModelId?: string;
+};
+
+async function executeGeneration(
+  input: GenerationSubmission,
+  resolved: ResolvedSubmission,
+  signal: AbortSignal,
+  setRunning: (seconds: number) => void,
+): Promise<CompletedGeneration> {
+  const { model, route, references } = resolved;
+  const requestId = await generationRepository.createPendingImageGeneration({
+    chatId: input.chatId, modelId: model.id, prompt: input.prompt,
+    referenceInputs: references,
+    parameters: {
+      imageCount: input.imageCount, aspectRatio: input.aspectRatio,
+      imageInstructions: input.instructions.trim(), references: { count: references.length },
+      route: { kind: route.kind, providerModelName: route.providerModelName },
     },
-  );
-  await generationRepository.markImageGenerationRunning(requestId);
-
+  });
   try {
-    signal?.throwIfAborted();
-    const { output, durationSeconds } = await requestImages(
-      model,
-      providerConfig,
-      input,
-      signal,
-    );
-    const firstImage = output.images[0];
-    if (!firstImage) throw new Error(i18n.t("errors.providerNoImage"));
-    signal?.throwIfAborted();
-
-    const committed = await generationRepository.completeImageGenerationSuccess(
-      {
-        requestId,
-        chatId,
-        modelId: model.id,
-        type: "image",
-        prompt: input.prompt,
-        parameters,
-        images: output.images,
-        rawMetadata: output.rawMetadata,
-      },
-    );
-    if (!committed)
-      throw new DOMException(i18n.t("errors.aborted"), "AbortError");
-    await modelLoadEstimateRepository.recordSuccessfulDuration(
-      model.providerId,
-      model.providerModelName,
-      durationSeconds,
-    );
-    return firstImage;
+    const prepared = await prepareRequest(input, resolved, signal);
+    signal.throwIfAborted();
+    await generationRepository.markImageGenerationRunning(requestId, prepared.references);
+    signal.throwIfAborted();
+    setRunning(prepared.estimatedSeconds);
+    const result = await requestImages(input, resolved, prepared.references, signal);
+    await generationRepository.completeImageGenerationSuccess({ requestId, ...result.output, signal });
+    return { firstImage: result.output.images[0], providerId: model.providerId,
+      providerModelName: route.providerModelName, durationSeconds: result.durationSeconds, titleModelId: prepared.titleModelId };
   } catch (error) {
-    if (signal?.aborted || isAbortError(error)) {
-      await generationRepository.cancelImageGeneration(requestId);
-      throw error;
-    }
-    await generationRepository.completeImageGenerationFailure({
-      requestId,
-      error: sanitizeProviderError(error),
-    });
+    await recordFailure(requestId, error, signal);
     throw error;
   }
 }
 
-async function requestImages(
-  model: StaticModel,
-  providerConfig: NonNullable<
-    Awaited<ReturnType<typeof providerConfigRepository.get>>
-  >,
-  input: ImageGenerationInput,
-  signal?: AbortSignal,
-): Promise<{ output: NormalizedGenerationOutput; durationSeconds: number }> {
-  try {
-    if (isBrowserOffline()) throw new Error(providerConnectivityError());
+async function prepareRequest(input: GenerationSubmission, resolved: ResolvedSubmission, signal: AbortSignal) {
+  signal.throwIfAborted();
+  const references: StoredReference[] = await Promise.all(resolved.references.map(async (reference) =>
+    reference.type === "pinned"
+      ? { type: "pinned" as const, imageId: reference.imageId, dataUrl: await blobToDataUrl(reference.blob, i18n.t("errors.fileRead"), signal) }
+      : { ...reference },
+  ));
+  const estimatedSeconds = await modelLoadEstimateRepository.getEstimatedSeconds(resolved.model.providerId, resolved.route.providerModelName);
+  const chat = await chatRepository.get(input.chatId);
+  const images = await imageRepository.listByChat(input.chatId);
+  let titleModelId: string | undefined;
+  if (chat && !chat.titleEdited && !chat.titleGeneratedAt && images.length === 0) {
+    const configs = await providerConfigRepository.list();
+    const disabled = await appOptionsRepository.getDisabledModelIds();
+    titleModelId = listUsableModels(["text"], configs, disabled).find(modelSupportsImageInput)?.id;
+  }
+  return { references, estimatedSeconds, titleModelId };
+}
 
-    const provider = getProviderForModel(model);
-    const startedAtMs = Date.now();
-    const output = await provider.generateImage(
-      model,
-      providerConfig,
-      input,
-      signal,
-    );
-    const normalizedOutput = {
-      ...output,
-      images: await normalizeOutputImageSizes(output.images),
-    };
-    const durationSeconds = (Date.now() - startedAtMs) / 1000;
-    return { output: normalizedOutput, durationSeconds };
-  } catch (error) {
-    throw new Error(sanitizeProviderError(error));
+async function requestImages(input: GenerationSubmission, resolved: ResolvedSubmission, references: StoredReference[], signal: AbortSignal) {
+  signal.throwIfAborted();
+  if (isBrowserOffline()) throw new Error(providerConnectivityError());
+  const startedAt = Date.now();
+  const provider = getProviderForModel(resolved.model);
+  const output = await provider.generateImage(resolved.route, resolved.config, {
+    prompt: input.prompt, instructions: input.instructions, imageCount: input.imageCount,
+    aspectRatio: input.aspectRatio, references: references.map((reference) => reference.dataUrl),
+  }, signal);
+  const images = await normalizeImages(output.images, signal);
+  if (!images.length) throw new Error(i18n.t("errors.providerNoImage"));
+  return { output: { ...output, images }, durationSeconds: (Date.now() - startedAt) / 1000 };
+}
+
+async function recordFailure(requestId: string, error: unknown, signal: AbortSignal) {
+  const cancelled = signal.aborted || (error instanceof DOMException && error.name === "AbortError");
+  try {
+    await generationRepository.finishUnsuccessfulGeneration(requestId, cancelled ? "cancelled" : "failed", cancelled ? undefined : sanitizeProviderError(error));
+  } catch (persistenceError) {
+    // Keep the original generation failure as the primary error.
+    console.error("Recording generation failure failed.", persistenceError);
   }
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
-}
-
-function summarizeReferences(input: ImageGenerationInput) {
-  return { count: input.references?.length ?? 0 };
-}
-
-async function normalizeOutputImageSizes(
-  images: NormalizedGenerationOutput["images"],
-): Promise<NormalizedGenerationOutput["images"]> {
-  return Promise.all(
-    images.map(async (image) => ({
-      ...image,
-      blob: await scaleBlobToMaxLongEdge(image.blob, image.mimeType, 1280),
-    })),
-  );
-}
-
-async function scaleBlobToMaxLongEdge(
-  blob: Blob,
-  mimeType: string | undefined,
-  maxLongEdge: number,
-): Promise<Blob> {
-  let bitmap: ImageBitmap | undefined;
-  try {
-    bitmap = await createImageBitmap(blob);
-    const longEdge = Math.max(bitmap.width, bitmap.height);
-    const scale = Math.min(maxLongEdge / longEdge, 1);
-    if (scale >= 1) return blob;
-
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) return blob;
-    context.drawImage(bitmap, 0, 0, width, height);
-
-    const outputType = selectOutputMimeType(mimeType);
-    const converted = await canvasToBlob(canvas, outputType);
-    return converted ?? blob;
-  } catch {
-    return blob;
-  } finally {
-    bitmap?.close();
+async function finishAftercare(input: GenerationSubmission, result: CompletedGeneration) {
+  const tasks = [modelLoadEstimateRepository.recordSuccessfulDuration(result.providerId, result.providerModelName, result.durationSeconds)];
+  if (result.titleModelId) tasks.push(generateChatTitle(input.chatId, result.titleModelId, result.firstImage, input.language));
+  const outcomes = await Promise.allSettled(tasks);
+  for (const outcome of outcomes) {
+    if (outcome.status === "rejected") console.error("Generation aftercare failed; stored images remain successful.", outcome.reason);
   }
-}
-
-function canvasToBlob(
-  canvas: HTMLCanvasElement,
-  mimeType: string,
-): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    canvas.toBlob(
-      (result) => resolve(result),
-      mimeType,
-      mimeType === "image/jpeg" ? 0.92 : undefined,
-    );
-  });
-}
-
-function selectOutputMimeType(mimeType?: string): string {
-  if (mimeType === "image/png" || mimeType === "image/webp") return mimeType;
-  return "image/jpeg";
 }

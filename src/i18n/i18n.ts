@@ -23,9 +23,9 @@ export async function initializeI18n(): Promise<AppLanguage> {
 }
 
 export async function changeAppLanguage(language: AppLanguage) {
+  await appOptionsRepository.set("language", language);
   await i18n.changeLanguage(language);
   document.documentElement.lang = language;
-  await appOptionsRepository.set("language", language).catch(() => undefined);
 }
 
 export default i18n;

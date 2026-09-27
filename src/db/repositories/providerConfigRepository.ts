@@ -1,7 +1,7 @@
 import { db } from "../database";
 import type { ProviderConfigEntity } from "../entities";
 import { nowIso } from "../id";
-import { providerDefinitions } from "../../features/generation/models/registry";
+import { providerDefinitions } from "../../features/generation/models/catalogue";
 
 export function isProviderUsable(provider: ProviderConfigEntity): boolean {
   return Boolean(
@@ -13,12 +13,10 @@ export function isProviderUsable(provider: ProviderConfigEntity): boolean {
 
 export const providerConfigRepository = {
   async list(): Promise<ProviderConfigEntity[]> {
-    await seedMissingProviderConfigs();
     const providers = await db.providerConfigs.toArray();
-    const withDevApiKeys = await applyDevApiKeys(providers);
     return providerDefinitions.map((definition) =>
       normalizeProviderConfig(
-        withDevApiKeys.find((provider) => provider.id === definition.id),
+        providers.find((provider) => provider.id === definition.id),
         definition.id,
       ),
     );
@@ -36,7 +34,7 @@ export const providerConfigRepository = {
   },
 };
 
-async function seedMissingProviderConfigs(): Promise<void> {
+export async function initializeProviderConfigs(): Promise<void> {
   const now = nowIso();
   await Promise.all(
     providerDefinitions.map(async (definition) => {
@@ -51,6 +49,7 @@ async function seedMissingProviderConfigs(): Promise<void> {
       });
     }),
   );
+  await applyDevApiKeys(await db.providerConfigs.toArray());
 }
 
 function normalizeProviderConfig(

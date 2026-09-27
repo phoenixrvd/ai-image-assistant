@@ -1,3 +1,5 @@
+import type { ReferenceInput, StoredReference } from "../features/generation/types";
+
 export type EntityId = string;
 export type ModelType = "text" | "image" | "image-edit";
 export type MessageRole = "user" | "assistant" | "system";
@@ -76,6 +78,9 @@ export interface GenerationRequestEntity extends TimestampedEntity {
   type: ModelType;
   prompt: string;
   parameters?: Record<string, JsonValue>;
+  snapshotVersion?: 1 | 2;
+  referenceInputs?: ReferenceInput[];
+  preparedReferences?: StoredReference[];
   status: GenerationStatus;
   error?: string;
 }

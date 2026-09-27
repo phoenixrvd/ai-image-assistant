@@ -1,22 +1,7 @@
 import { db } from "../database";
 import type { ChatEntity, ImageEntity, MessageEntity } from "../entities";
 import { createId, nowIso } from "../id";
-
-export type ChatAspectRatio = "square" | "portrait" | "landscape";
-
-export type ChatUploadedReference = {
-  name: string;
-  dataUrl: string;
-};
-
-export type ChatSettings = {
-  promptDraft?: string;
-  activeImageModelId?: string;
-  imageCount?: number;
-  aspectRatio?: ChatAspectRatio;
-  imageInstructions?: string;
-  uploadedReferences?: ChatUploadedReference[];
-};
+import { isValidAspectRatio, isValidImageCount, type ChatSettings, type ChatUploadedReference } from "../../features/chats/types";
 
 const maxUploadedReferences = 3;
 
@@ -199,7 +184,7 @@ export function getLastChangedAt(chat: ChatEntity): string {
   return chat.lastMessageAt ?? chat.updatedAt;
 }
 
-function parseChatSettings(chat: ChatEntity): ChatSettings {
+export function parseChatSettings(chat: ChatEntity): ChatSettings {
   const metadata = chat.metadata ?? {};
   const rawSettings = metadata.chatSettings;
   const settings =
@@ -212,8 +197,8 @@ function parseChatSettings(chat: ChatEntity): ChatSettings {
   return sanitizeChatSettings({
     promptDraft: readString(settings.promptDraft),
     activeImageModelId: readString(settings.activeImageModelId),
-    imageCount: readImageCount(settings.imageCount),
-    aspectRatio: readAspectRatio(settings.aspectRatio),
+    imageCount: isValidImageCount(settings.imageCount) ? settings.imageCount : undefined,
+    aspectRatio: isValidAspectRatio(settings.aspectRatio) ? settings.aspectRatio : undefined,
     imageInstructions:
       readString(settings.imageInstructions) ??
       readString(metadata.imageInstructions),
@@ -237,21 +222,6 @@ function sanitizeChatSettings(settings: ChatSettings): ChatSettings {
 
 function readString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
-}
-
-function readImageCount(value: unknown): number | undefined {
-  return typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= 1 &&
-    value <= 4
-    ? value
-    : undefined;
-}
-
-function readAspectRatio(value: unknown): ChatAspectRatio | undefined {
-  return value === "square" || value === "portrait" || value === "landscape"
-    ? value
-    : undefined;
 }
 
 function readUploadedReferences(value: unknown): ChatUploadedReference[] {

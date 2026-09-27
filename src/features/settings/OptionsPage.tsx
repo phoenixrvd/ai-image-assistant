@@ -1,93 +1,40 @@
 import { Fragment } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Moon, Sun } from "lucide-react";
 import type { ProviderConfigEntity, ThemeMode } from "../../db/entities";
-import { appOptionsRepository } from "../../db/repositories/appOptionsRepository";
-import { modelLoadEstimateRepository } from "../../db/repositories/modelLoadEstimateRepository";
-import { providerConfigRepository } from "../../db/repositories/providerConfigRepository";
+import { settingsQueries, useModelConfiguration } from "./queries";
+import { useSettingsMutation } from "./mutations";
 import {
-  getModelLabel,
+  getSelectableModelLabel,
   getProviderDefinition,
   canDisableModel,
   canDisableProvider,
   hasRequiredEnabledModels,
   isModelEnabled,
-  listModels,
   listModelsByProvider,
-  listUsableModels,
-  providerDefinitions,
-} from "../../features/generation/models/registry";
+} from "../generation/models/registry";
+import { providerDefinitions } from "../generation/models/catalogue";
 import type {
   ProviderId,
   StaticModel,
-} from "../../features/generation/models/types";
-import { getModelPriceLabel } from "../../features/generation/models/pricing";
-import { appMetadata } from "../metadata";
-import { changeAppLanguage } from "../../i18n/i18n";
+} from "../generation/models/types";
+import { getModelPriceLabel } from "../generation/models/pricing";
+import { appMetadata } from "../../metadata";
 import type { AppLanguage } from "../../i18n/types";
 
-export function OptionsView(props: {
-  providerConfigs: ProviderConfigEntity[];
-  disabledModelIds: string[];
-  theme: ThemeMode;
-  defaultImageModelId?: string;
-  onDefaultImageModel: (modelId: string) => void;
-  onDisabledModelIds: (modelIds: string[]) => Promise<void>;
-}) {
+export function OptionsPage() {
   const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
-  const saveProviderMutation = useMutation({
-    mutationFn: (provider: ProviderConfigEntity) =>
-      providerConfigRepository.save(provider),
-    scope: { id: "provider-config" },
-    onMutate: (provider) => {
-      queryClient.setQueryData<ProviderConfigEntity[]>(
-        ["providerConfigs"],
-        (current = []) =>
-          current.map((entry) => (entry.id === provider.id ? provider : entry)),
-      );
-    },
-    onError: () =>
-      queryClient.invalidateQueries({ queryKey: ["providerConfigs"] }),
-  });
-
-  async function setTheme(theme: ThemeMode) {
-    await appOptionsRepository.set("theme", theme);
-    await queryClient.invalidateQueries({ queryKey: ["theme"] });
-  }
-
-  async function setLanguage(language: AppLanguage) {
-    await changeAppLanguage(language);
-  }
-
-  const usableImageModels = listUsableModels(
-    ["image", "image-edit"],
-    props.providerConfigs,
-    props.disabledModelIds,
-  );
-
-  const modelEstimateQuery = useQuery({
-    queryKey: ["modelLoadEstimates"],
-    queryFn: async () => {
-      const imageModels = listModels().filter(
-        (model) => model.type === "image" || model.type === "image-edit",
-      );
-      const entries = await Promise.all(
-        imageModels.map(async (model) => {
-          const seconds = await modelLoadEstimateRepository.getEstimatedSeconds(
-            model.providerId,
-            model.providerModelName,
-          );
-          return [estimateKey(model), seconds] as const;
-        }),
-      );
-      return Object.fromEntries(entries);
-    },
-  });
+  const config = useModelConfiguration();
+  const theme = useQuery(settingsQueries.theme);
+  const save = useSettingsMutation();
+  const usableImageModels = config.imageModels;
+  const modelEstimateQuery = useQuery(settingsQueries.estimates);
+  const error = save.error ?? config.error ?? theme.error;
 
   return (
     <section className="options-view container-xxl py-3">
+      {error && <p className="alert alert-danger" role="alert">{error.message}</p>}
       <section className="options-section" aria-labelledby="providers-heading">
         <div className="d-flex align-items-center justify-content-between gap-3">
           <h2 id="providers-heading" className="h5 mb-0">
@@ -96,17 +43,17 @@ export function OptionsView(props: {
         </div>
         {providerDefinitions.map((definition) => {
           const provider =
-            props.providerConfigs.find((entry) => entry.id === definition.id) ??
+            config.providerConfigs.find((entry) => entry.id === definition.id) ??
             createProviderFallback(definition.id);
           return (
             <ProviderForm
               key={definition.id}
               provider={provider}
-              providerConfigs={props.providerConfigs}
-              disabledModelIds={props.disabledModelIds}
+              providerConfigs={config.providerConfigs}
+              disabledModelIds={config.disabledModelIds}
               estimates={modelEstimateQuery.data}
-              onChange={(next) => saveProviderMutation.mutate(next)}
-              onDisabledModelIds={props.onDisabledModelIds}
+              onChange={(value) => save.mutate({ kind: "provider", value })}
+              onDisabledModelIds={(value) => save.mutate({ kind: "disabledModels", value })}
             />
           );
         })}
@@ -120,10 +67,10 @@ export function OptionsView(props: {
             <select
               className="form-select"
               id="default-image-model"
-              value={props.defaultImageModelId ?? ""}
+              value={config.defaultModel?.id ?? ""}
               disabled={usableImageModels.length === 0}
               onChange={(event) =>
-                props.onDefaultImageModel(event.target.value)
+                save.mutate({ kind: "defaultModel", value: event.target.value, previous: config.defaultModel?.id })
               }
             >
               {usableImageModels.length === 0 ? (
@@ -131,7 +78,10 @@ export function OptionsView(props: {
               ) : null}
               {usableImageModels.map((model) => (
                 <option key={model.id} value={model.id}>
-                  {getModelLabel(model)}
+                  {getSelectableModelLabel(model, {
+                    createOnly: t("config.createOnly"),
+                    editOnly: t("config.editOnly"),
+                  })}
                 </option>
               ))}
             </select>
@@ -156,22 +106,22 @@ export function OptionsView(props: {
                 icon: <Moon size={17} />,
               },
               { id: "system", label: t("options.system") },
-            ].map((theme) => (
-              <Fragment key={theme.id}>
+            ].map((option) => (
+              <Fragment key={option.id}>
                 <input
                   type="radio"
                   className="btn-check"
                   name="theme"
-                  id={`theme-${theme.id}`}
+                  id={`theme-${option.id}`}
                   autoComplete="off"
-                  checked={props.theme === theme.id}
-                  onChange={() => setTheme(theme.id as ThemeMode)}
+                  checked={(theme.data ?? "system") === option.id}
+                  onChange={() => save.mutate({ kind: "theme", value: option.id as ThemeMode })}
                 />
                 <label
                   className="btn btn-outline-secondary"
-                  htmlFor={`theme-${theme.id}`}
+                  htmlFor={`theme-${option.id}`}
                 >
-                  {theme.icon} {theme.label}
+                  {option.icon} {option.label}
                 </label>
               </Fragment>
             ))}
@@ -182,7 +132,7 @@ export function OptionsView(props: {
               id="language"
               value={i18n.language}
               onChange={(event) =>
-                void setLanguage(event.target.value as AppLanguage)
+                save.mutate({ kind: "language", value: event.target.value as AppLanguage })
               }
             >
               <option value="de">{t("options.german")}</option>
@@ -216,7 +166,7 @@ function ProviderForm(props: {
   disabledModelIds: string[];
   estimates?: Record<string, number>;
   onChange: (provider: ProviderConfigEntity) => void;
-  onDisabledModelIds: (modelIds: string[]) => Promise<void>;
+  onDisabledModelIds: (modelIds: string[]) => void;
 }) {
   const { t, i18n } = useTranslation();
   const provider = props.provider;
@@ -234,9 +184,6 @@ function ProviderForm(props: {
       props.providerConfigs,
       props.disabledModelIds,
     );
-  const saveDisabledModelsMutation = useMutation({
-    mutationFn: props.onDisabledModelIds,
-  });
 
   function updateProvider(next: ProviderConfigEntity) {
     if (
@@ -333,7 +280,7 @@ function ProviderForm(props: {
                       const disabledModelIds = event.target.checked
                         ? props.disabledModelIds.filter((id) => id !== model.id)
                         : [...props.disabledModelIds, model.id];
-                      saveDisabledModelsMutation.mutate(disabledModelIds);
+                      props.onDisabledModelIds(disabledModelIds);
                     }}
                   />
                   <span className="form-check-label model-option-label">
@@ -381,15 +328,17 @@ function formatModelName(
   estimates?: Record<string, number>,
 ): string {
   if (model.type === "text") return `${model.name} (${t("options.text")})`;
-  const seconds = estimates?.[estimateKey(model)] ?? 30;
+  const route = model.routes.create ?? model.routes.edit;
+  const seconds = route
+    ? (estimates?.[estimateKey(model.providerId, route.providerModelName)] ??
+      30)
+    : 30;
   return t("options.estimate", {
     name: model.name,
     seconds: Math.round(seconds),
   });
 }
 
-function estimateKey(
-  model: Pick<StaticModel, "providerId" | "providerModelName">,
-): string {
-  return `${model.providerId}::${model.providerModelName}`;
+function estimateKey(providerId: string, modelName: string): string {
+  return `${providerId}::${modelName}`;
 }
